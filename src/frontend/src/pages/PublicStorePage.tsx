@@ -190,11 +190,8 @@ export default function PublicStorePage({ onAdminClick }: Props) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, ease: "easeOut" }}
           >
-            <p className="font-serif text-primary text-sm tracking-widest uppercase mb-3">
-              Artisan &amp; Small-Batch
-            </p>
             <h1 className="font-display font-bold text-4xl sm:text-5xl lg:text-6xl text-foreground tracking-tight leading-tight mb-4">
-              Good Food,
+              Good Food Products,
               <br />
               <span className="text-primary">Straight to Your Door</span>
             </h1>
@@ -271,7 +268,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                   )}
                   <div className="absolute top-3 right-3">
                     <span className="price-pill font-body font-semibold text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-                      ${Number(product.price).toFixed(2)}
+                      ₹{Number(product.price).toFixed(2)}
                     </span>
                   </div>
                 </div>

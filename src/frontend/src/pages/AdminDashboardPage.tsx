@@ -24,10 +24,10 @@ import {
   AlertTriangle,
   Calendar,
   ClipboardList,
-  DollarSign,
   Edit2,
   FileText,
   Image as ImageIcon,
+  IndianRupee,
   Loader2,
   LogOut,
   Package,
@@ -487,7 +487,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                               {product.description}
                             </p>
                             <span className="inline-block mt-1.5 text-xs font-display font-bold text-primary">
-                              ${Number(product.price).toFixed(2)}
+                              ₹{Number(product.price).toFixed(2)}
                             </span>
                           </div>
 
@@ -615,7 +615,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                   htmlFor="prod-price"
                   className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
                 >
-                  <DollarSign className="w-3.5 h-3.5 text-muted-foreground" />
+                  <IndianRupee className="w-3.5 h-3.5 text-muted-foreground" />
                   Price <span className="text-destructive">*</span>
                 </Label>
                 <Input

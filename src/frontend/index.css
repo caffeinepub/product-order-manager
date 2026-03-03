@@ -1,0 +1,140 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fraunces - Display (editorial serif) */
+@font-face {
+  font-family: "Fraunces";
+  src: url("/assets/fonts/Fraunces-Variable.woff2") format("woff2");
+  font-weight: 100 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Bricolage Grotesque - Body */
+@font-face {
+  font-family: "Bricolage Grotesque";
+  src: url("/assets/fonts/BricolageGrotesque-Variable.woff2") format("woff2");
+  font-weight: 200 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Instrument Serif - Accent */
+@font-face {
+  font-family: "Instrument Serif";
+  src: url("/assets/fonts/InstrumentSerif-Regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@layer base {
+  :root {
+    --radius: 0.625rem;
+
+    /* Warm parchment background */
+    --background: 0.97 0.012 75;
+    --foreground: 0.2 0.025 40;
+
+    --card: 0.99 0.006 75;
+    --card-foreground: 0.2 0.025 40;
+
+    --popover: 0.99 0.006 75;
+    --popover-foreground: 0.2 0.025 40;
+
+    /* Terracotta / rust primary */
+    --primary: 0.54 0.16 32;
+    --primary-foreground: 0.98 0.005 75;
+
+    --secondary: 0.93 0.018 75;
+    --secondary-foreground: 0.25 0.03 40;
+
+    --muted: 0.93 0.012 75;
+    --muted-foreground: 0.5 0.02 40;
+
+    /* Warm golden accent */
+    --accent: 0.78 0.14 65;
+    --accent-foreground: 0.18 0.03 40;
+
+    --destructive: 0.56 0.22 25;
+    --destructive-foreground: 0.98 0 0;
+
+    --border: 0.88 0.018 75;
+    --input: 0.88 0.018 75;
+    --ring: 0.54 0.16 32;
+
+    --chart-1: 0.54 0.16 32;
+    --chart-2: 0.72 0.14 65;
+    --chart-3: 0.44 0.13 55;
+    --chart-4: 0.65 0.17 30;
+    --chart-5: 0.6 0.12 200;
+
+    --sidebar: 0.95 0.014 75;
+    --sidebar-foreground: 0.2 0.025 40;
+    --sidebar-primary: 0.54 0.16 32;
+    --sidebar-primary-foreground: 0.98 0.005 75;
+    --sidebar-accent: 0.91 0.016 75;
+    --sidebar-accent-foreground: 0.2 0.025 40;
+    --sidebar-border: 0.88 0.018 75;
+    --sidebar-ring: 0.54 0.16 32;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+}
+
+@layer utilities {
+  .font-display {
+    font-family: "Fraunces", Georgia, serif;
+  }
+  .font-body {
+    font-family: "Bricolage Grotesque", system-ui, sans-serif;
+  }
+  .font-serif {
+    font-family: "Instrument Serif", Georgia, serif;
+  }
+
+  /* Subtle grain texture */
+  .grain-overlay {
+    position: relative;
+  }
+  .grain-overlay::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.035'/%3E%3C/svg%3E");
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Card hover lift */
+  .card-lift {
+    transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.25s ease;
+  }
+  .card-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -12px oklch(0.54 0.16 32 / 0.18), 0 8px 20px -8px oklch(0 0 0 / 0.09);
+  }
+
+  /* Terracotta glow */
+  .btn-glow:hover {
+    box-shadow: 0 0 22px oklch(0.54 0.16 32 / 0.38);
+  }
+
+  /* Price badge */
+  .price-pill {
+    background: oklch(0.99 0.006 75 / 0.88);
+    color: oklch(0.45 0.16 32);
+    border: 1px solid oklch(0.54 0.16 32 / 0.3);
+  }
+}

@@ -196,8 +196,8 @@ export default function PublicStorePage({ onAdminClick }: Props) {
               <span className="text-primary">Straight to Your Door</span>
             </h1>
             <p className="font-body text-muted-foreground text-lg max-w-xl mx-auto">
-              Handpicked artisan products from local makers. Order anything you
-              love and we'll reach out personally to arrange delivery.
+              Order anything you love and we'll reach out personally to arrange
+              delivery.
             </p>
           </motion.div>
         </div>

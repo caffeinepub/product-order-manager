@@ -46,11 +46,13 @@ export function useSubmitOrder() {
       productName,
       customerName,
       contactNumber,
+      cityName,
     }: {
       productId: bigint;
       productName: string;
       customerName: string;
       contactNumber: string;
+      cityName?: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.submitOrder(
@@ -58,6 +60,7 @@ export function useSubmitOrder() {
         productName,
         customerName,
         contactNumber,
+        cityName ?? "",
       );
     },
   });

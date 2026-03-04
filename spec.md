@@ -1,36 +1,26 @@
-# Product Order Manager — Food Store Redesign
+# Product Order Manager
 
 ## Current State
-- Tech/electronics themed store ("LuxeStore") with emerald green color palette
-- Sample products are tech gadgets (headphones, smartwatch, keyboard, etc.)
-- Typography: Cabinet Grotesk (display) + General Sans (body) + Instrument Serif (accent)
-- Color: warm cream background with emerald primary, amber accent
-- All core functionality works: public store with "Order Now", admin PIN 0852, add/edit/delete products, orders table
+A food product store where customers can browse products and place orders with their name and contact number. Admins log in with PIN 0852 to manage products (add/edit/delete) and view incoming orders. Orders currently capture: customer name, contact number, product name, product ID, and timestamp.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Food-themed sample products (6 items: e.g. artisan breads, gourmet cheese, premium olive oil, spice blends, honey, fresh pasta)
-- Food-appropriate generated hero/product images
-- Warm appetizing color palette (terracotta/rust primary, warm cream background, golden accent)
-- Food-themed store branding ("Fresh Market" or "Harvest Table")
-- Appetizing typography feel (Fraunces serif for display moments, Bricolage Grotesque for body)
+- Optional `cityName` field (Text) to the `Order` type in the backend
+- Optional city name input field in the customer order form (PublicStorePage)
+- City column in the admin orders table (AdminDashboardPage)
 
 ### Modify
-- `index.css`: Replace emerald green tokens with terracotta/warm amber palette
-- `tailwind.config.js`: Update font families, box shadows to match new palette
-- `PublicStorePage.tsx`: Updated store name, food-themed hero copy, food sample products
-- `AdminDashboardPage.tsx`: Updated branding to match
-- `AdminLoginPage.tsx`: Updated branding to match
+- `submitOrder` backend function to accept an optional `cityName` parameter (empty string if not provided)
+- Order form state and validation — city is NOT required
+- Success message to optionally mention city if provided
 
 ### Remove
-- Tech product sample data (headphones, smartwatch, keyboard, etc.)
-- Tech-themed generated images
-- Generic "LuxeStore" branding
+- Nothing
 
 ## Implementation Plan
-1. Generate 6 food product images (artisan bread, aged cheese, olive oil, spice mix, honey, fresh pasta)
-2. Update `index.css` color tokens: terracotta primary (~oklch 0.55 0.15 30), warm cream background, golden accent
-3. Update `tailwind.config.js`: swap fonts to Fraunces (display) + Bricolage Grotesque (body), update shadows
-4. Update `PublicStorePage.tsx`: new store name, food copy, food sample products with new image paths
-5. Update `AdminDashboardPage.tsx` + `AdminLoginPage.tsx`: updated branding
+1. Regenerate backend with `cityName: Text` added to the Order type and `submitOrder` accepting a `cityName` parameter
+2. Update `useQueries.ts` `useSubmitOrder` hook to include optional `cityName`
+3. Add city input field to `PublicStorePage.tsx` order form (not required, no asterisk)
+4. Add "City" column to the orders table in `AdminDashboardPage.tsx`, showing city or "—" if empty
+5. Build and deploy

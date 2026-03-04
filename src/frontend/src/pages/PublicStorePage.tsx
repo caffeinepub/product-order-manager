@@ -13,6 +13,7 @@ import {
   CheckCircle2,
   Loader2,
   Lock,
+  MapPin,
   Package,
   Phone,
   ShoppingBag,
@@ -82,6 +83,7 @@ interface Props {
 interface OrderForm {
   customerName: string;
   contactNumber: string;
+  cityName: string;
 }
 
 export default function PublicStorePage({ onAdminClick }: Props) {
@@ -89,6 +91,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
   const [orderForm, setOrderForm] = useState<OrderForm>({
     customerName: "",
     contactNumber: "",
+    cityName: "",
   });
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [formErrors, setFormErrors] = useState<Partial<OrderForm>>({});
@@ -120,6 +123,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
         productName: selectedProduct.name,
         customerName: orderForm.customerName.trim(),
         contactNumber: orderForm.contactNumber.trim(),
+        cityName: orderForm.cityName.trim(),
       });
       setOrderSuccess(true);
       toast.success("Order placed! We'll be in touch shortly.");
@@ -132,7 +136,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
   const handleDialogClose = (open: boolean) => {
     if (!open) {
       setSelectedProduct(null);
-      setOrderForm({ customerName: "", contactNumber: "" });
+      setOrderForm({ customerName: "", contactNumber: "", cityName: "" });
       setFormErrors({});
       setOrderSuccess(false);
       submitOrder.reset();
@@ -441,6 +445,38 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                         {formErrors.contactNumber}
                       </p>
                     )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label
+                      htmlFor="cityName"
+                      className="font-body font-semibold text-sm text-foreground"
+                    >
+                      City{" "}
+                      <span className="text-muted-foreground font-normal text-xs">
+                        (optional)
+                      </span>
+                    </Label>
+                    <div className="relative">
+                      <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                      <Input
+                        id="cityName"
+                        placeholder="Your city"
+                        value={orderForm.cityName}
+                        onChange={(e) => {
+                          setOrderForm((prev) => ({
+                            ...prev,
+                            cityName: e.target.value,
+                          }));
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleOrderSubmit();
+                        }}
+                        className="pl-9 font-body rounded-xl h-11"
+                        data-ocid="order.city_input"
+                        autoComplete="address-level2"
+                      />
+                    </div>
                   </div>
                 </div>
 

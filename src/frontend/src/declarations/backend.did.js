@@ -14,6 +14,7 @@ export const Order = IDL.Record({
   'customerName' : IDL.Text,
   'productId' : IDL.Nat,
   'productName' : IDL.Text,
+  'cityName' : IDL.Text,
   'timestamp' : Time,
   'contactNumber' : IDL.Text,
 });
@@ -39,7 +40,11 @@ export const idlService = IDL.Service({
     ),
   'listOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], ['query']),
   'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-  'submitOrder' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text, IDL.Text], [], []),
+  'submitOrder' : IDL.Func(
+      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+      [],
+      [],
+    ),
   'verifyAdminPin' : IDL.Func([IDL.Text], [IDL.Bool], []),
 });
 
@@ -52,6 +57,7 @@ export const idlFactory = ({ IDL }) => {
     'customerName' : IDL.Text,
     'productId' : IDL.Nat,
     'productName' : IDL.Text,
+    'cityName' : IDL.Text,
     'timestamp' : Time,
     'contactNumber' : IDL.Text,
   });
@@ -77,7 +83,11 @@ export const idlFactory = ({ IDL }) => {
       ),
     'listOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], ['query']),
     'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-    'submitOrder' : IDL.Func([IDL.Nat, IDL.Text, IDL.Text, IDL.Text], [], []),
+    'submitOrder' : IDL.Func(
+        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
+        [],
+        [],
+      ),
     'verifyAdminPin' : IDL.Func([IDL.Text], [IDL.Bool], []),
   });
 };

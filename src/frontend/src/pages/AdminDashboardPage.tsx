@@ -31,6 +31,7 @@ import {
   Link,
   Loader2,
   LogOut,
+  MapPin,
   Package,
   Phone,
   Plus,
@@ -366,16 +367,21 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                     <table className="w-full">
                       <thead>
                         <tr className="bg-muted/50">
-                          {["#", "Customer", "Contact", "Product", "Date"].map(
-                            (h) => (
-                              <th
-                                key={h}
-                                className="px-5 py-3 text-left font-display font-semibold text-xs text-muted-foreground uppercase tracking-wide"
-                              >
-                                {h}
-                              </th>
-                            ),
-                          )}
+                          {[
+                            "#",
+                            "Customer",
+                            "Contact",
+                            "City",
+                            "Product",
+                            "Date",
+                          ].map((h) => (
+                            <th
+                              key={h}
+                              className="px-5 py-3 text-left font-display font-semibold text-xs text-muted-foreground uppercase tracking-wide"
+                            >
+                              {h}
+                            </th>
+                          ))}
                         </tr>
                       </thead>
                       <tbody>
@@ -410,6 +416,18 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                                   {order.contactNumber}
                                 </a>
                               </div>
+                            </td>
+                            <td className="px-5 py-4">
+                              {order.cityName ? (
+                                <div className="flex items-center gap-1.5 font-body text-sm text-foreground">
+                                  <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
+                                  {order.cityName}
+                                </div>
+                              ) : (
+                                <span className="font-body text-sm text-muted-foreground">
+                                  —
+                                </span>
+                              )}
                             </td>
                             <td className="px-5 py-4">
                               <span className="font-body text-sm text-foreground">

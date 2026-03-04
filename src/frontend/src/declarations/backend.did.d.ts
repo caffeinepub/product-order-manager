@@ -15,6 +15,7 @@ export interface Order {
   'customerName' : string,
   'productId' : bigint,
   'productName' : string,
+  'cityName' : string,
   'timestamp' : Time,
   'contactNumber' : string,
 }
@@ -38,7 +39,10 @@ export interface _SERVICE {
   >,
   'listOrders' : ActorMethod<[string], Array<Order>>,
   'listProducts' : ActorMethod<[], Array<Product>>,
-  'submitOrder' : ActorMethod<[bigint, string, string, string], undefined>,
+  'submitOrder' : ActorMethod<
+    [bigint, string, string, string, string],
+    undefined
+  >,
   'verifyAdminPin' : ActorMethod<[string], boolean>,
 }
 export declare const idlService: IDL.ServiceClass;

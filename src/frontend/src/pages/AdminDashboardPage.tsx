@@ -28,6 +28,7 @@ import {
   FileText,
   Image as ImageIcon,
   IndianRupee,
+  Link,
   Loader2,
   LogOut,
   Package,
@@ -36,10 +37,11 @@ import {
   ShoppingBag,
   Tag,
   Trash2,
+  Upload,
   User,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
 import {
@@ -76,6 +78,9 @@ export default function AdminDashboardPage({ onLogout }: Props) {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [productForm, setProductForm] = useState<ProductForm>(emptyForm);
   const [formErrors, setFormErrors] = useState<Partial<ProductForm>>({});
+  const [imageMode, setImageMode] = useState<"url" | "upload">("url");
+  const [uploadedFileName, setUploadedFileName] = useState<string>("");
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -113,6 +118,8 @@ export default function AdminDashboardPage({ onLogout }: Props) {
     setEditingProduct(null);
     setProductForm(emptyForm);
     setFormErrors({});
+    setImageMode("url");
+    setUploadedFileName("");
     setProductDialogOpen(true);
   };
 
@@ -125,6 +132,11 @@ export default function AdminDashboardPage({ onLogout }: Props) {
       imageUrl: product.imageUrl,
     });
     setFormErrors({});
+    // If existing image looks like a data URL, default to upload mode; otherwise URL mode
+    setImageMode(product.imageUrl.startsWith("data:") ? "upload" : "url");
+    setUploadedFileName(
+      product.imageUrl.startsWith("data:") ? "Existing image" : "",
+    );
     setProductDialogOpen(true);
   };
 
@@ -133,6 +145,20 @@ export default function AdminDashboardPage({ onLogout }: Props) {
     setEditingProduct(null);
     setProductForm(emptyForm);
     setFormErrors({});
+    setImageMode("url");
+    setUploadedFileName("");
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadedFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      updateField("imageUrl", dataUrl);
+    };
+    reader.readAsDataURL(file);
   };
 
   const handleProductSave = async () => {
@@ -608,67 +634,137 @@ export default function AdminDashboardPage({ onLogout }: Props) {
               )}
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              {/* Price */}
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="prod-price"
-                  className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
-                >
-                  <IndianRupee className="w-3.5 h-3.5 text-muted-foreground" />
-                  Price <span className="text-destructive">*</span>
+            {/* Price */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="prod-price"
+                className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
+              >
+                <IndianRupee className="w-3.5 h-3.5 text-muted-foreground" />
+                Price <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="prod-price"
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="99.99"
+                value={productForm.price}
+                onChange={(e) => updateField("price", e.target.value)}
+                className="font-body rounded-xl h-11"
+                data-ocid="admin.product_price_input"
+              />
+              {formErrors.price && (
+                <p className="text-destructive text-xs font-body">
+                  {formErrors.price}
+                </p>
+              )}
+            </div>
+
+            {/* Product Image — dual mode picker */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
+                  Product Image
                 </Label>
-                <Input
-                  id="prod-price"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="99.99"
-                  value={productForm.price}
-                  onChange={(e) => updateField("price", e.target.value)}
-                  className="font-body rounded-xl h-11"
-                  data-ocid="admin.product_price_input"
-                />
-                {formErrors.price && (
-                  <p className="text-destructive text-xs font-body">
-                    {formErrors.price}
-                  </p>
-                )}
+                {/* Mode toggle */}
+                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageMode("url");
+                      setUploadedFileName("");
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-display font-semibold transition-all ${
+                      imageMode === "url"
+                        ? "bg-card shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Link className="w-3 h-3" />
+                    URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setImageMode("upload");
+                      updateField("imageUrl", "");
+                      setUploadedFileName("");
+                    }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-display font-semibold transition-all ${
+                      imageMode === "upload"
+                        ? "bg-card shadow-sm text-foreground"
+                        : "text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    <Upload className="w-3 h-3" />
+                    Upload
+                  </button>
+                </div>
               </div>
 
-              {/* Image URL */}
-              <div className="space-y-1.5">
-                <Label
-                  htmlFor="prod-image"
-                  className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
-                >
-                  <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                  Image URL
-                </Label>
+              {imageMode === "url" ? (
                 <Input
                   id="prod-image"
-                  placeholder="https://..."
+                  placeholder="https://example.com/image.jpg"
                   value={productForm.imageUrl}
                   onChange={(e) => updateField("imageUrl", e.target.value)}
                   className="font-body rounded-xl h-11"
                   data-ocid="admin.product_image_input"
                 />
-              </div>
-            </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  {/* Hidden native file input */}
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleFileChange}
+                    data-ocid="admin.product_image_dropzone"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => fileInputRef.current?.click()}
+                    data-ocid="admin.product_image_upload_button"
+                    className="gap-2 font-body text-sm rounded-xl h-11 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all shrink-0"
+                  >
+                    <Upload className="w-4 h-4" />
+                    Choose File
+                  </Button>
+                  {uploadedFileName ? (
+                    <span className="font-body text-xs text-foreground truncate min-w-0 flex-1 bg-muted px-3 py-2 rounded-xl">
+                      {uploadedFileName}
+                    </span>
+                  ) : (
+                    <span className="font-body text-xs text-muted-foreground truncate">
+                      No file chosen
+                    </span>
+                  )}
+                </div>
+              )}
 
-            {/* Image Preview */}
-            {productForm.imageUrl && (
-              <div className="rounded-xl overflow-hidden border border-border h-32 bg-muted">
-                <img
-                  src={productForm.imageUrl}
-                  alt="Preview"
-                  className="w-full h-full object-cover"
-                  onError={(e) => {
-                    (e.target as HTMLImageElement).style.display = "none";
-                  }}
-                />
-              </div>
-            )}
+              {/* Image Preview */}
+              {productForm.imageUrl && (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ duration: 0.2 }}
+                  className="rounded-xl overflow-hidden border border-border h-32 bg-muted"
+                >
+                  <img
+                    src={productForm.imageUrl}
+                    alt="Preview"
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).style.display = "none";
+                    }}
+                  />
+                </motion.div>
+              )}
+            </div>
           </div>
 
           <DialogFooter className="gap-2 pt-2">

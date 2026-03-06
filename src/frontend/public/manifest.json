@@ -1,0 +1,24 @@
+{
+  "name": "Good Food Products",
+  "short_name": "Good Food",
+  "description": "Browse and order fresh food products online",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#c2714f",
+  "theme_color": "#c2714f",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/assets/generated/pwa-icon.dim_512x512.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/assets/generated/pwa-icon.dim_512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

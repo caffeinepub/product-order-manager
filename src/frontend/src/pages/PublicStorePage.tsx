@@ -13,6 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CheckCircle2,
+  Download,
   Loader2,
   Lock,
   MapPin,
@@ -22,7 +23,7 @@ import {
   User,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
 import {
@@ -115,6 +116,55 @@ interface OrderForm {
 
 export default function PublicStorePage({ onAdminClick }: Props) {
   const [activeTab, setActiveTab] = useState<CategoryKey>("all");
+  const [isInstalled, setIsInstalled] = useState(false);
+  const [_hasPrompt, setHasPrompt] = useState(false);
+  const promptRef = useRef<Event | null>(null);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault();
+      promptRef.current = e;
+      setHasPrompt(true);
+    };
+    window.addEventListener("beforeinstallprompt", handler);
+
+    // Hide if already installed
+    const mq = window.matchMedia("(display-mode: standalone)");
+    if (mq.matches) setIsInstalled(true);
+    const mqHandler = (e: MediaQueryListEvent) => {
+      if (e.matches) setIsInstalled(true);
+    };
+    mq.addEventListener("change", mqHandler);
+
+    window.addEventListener("appinstalled", () => setIsInstalled(true));
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", handler);
+      mq.removeEventListener("change", mqHandler);
+    };
+  }, []);
+
+  const handleInstall = async () => {
+    const prompt = promptRef.current as
+      | (Event & {
+          prompt: () => void;
+          userChoice: Promise<{ outcome: string }>;
+        })
+      | null;
+    if (!prompt) {
+      toast.info(
+        "To install: tap the browser menu and select 'Add to Home Screen'.",
+      );
+      return;
+    }
+    prompt.prompt();
+    const { outcome } = await prompt.userChoice;
+    if (outcome === "accepted") {
+      setIsInstalled(true);
+      setHasPrompt(false);
+      promptRef.current = null;
+    }
+  };
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [orderForm, setOrderForm] = useState<OrderForm>({
     customerName: "",
@@ -219,16 +269,31 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                 Harvest<span className="text-primary"> Table</span>
               </span>
             </div>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={onAdminClick}
-              data-ocid="nav.admin_link"
-              className="gap-2 font-body text-sm font-medium border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all"
-            >
-              <Lock className="w-3.5 h-3.5" />
-              Admin
-            </Button>
+            <div className="flex items-center gap-2">
+              {!isInstalled && (
+                <Button
+                  variant="default"
+                  size="sm"
+                  onClick={handleInstall}
+                  data-ocid="nav.install_button"
+                  className="gap-2 font-body text-sm font-semibold bg-primary text-primary-foreground hover:bg-primary/90 transition-all rounded-lg"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Add to Home Screen</span>
+                  <span className="sm:hidden">Install</span>
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={onAdminClick}
+                data-ocid="nav.admin_link"
+                className="gap-2 font-body text-sm font-medium border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all"
+              >
+                <Lock className="w-3.5 h-3.5" />
+                Admin
+              </Button>
+            </div>
           </div>
         </div>
       </header>

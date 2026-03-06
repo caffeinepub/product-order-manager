@@ -6,10 +6,10 @@ import Runtime "mo:core/Runtime";
 
 import Time "mo:core/Time";
 
-import Migration "migration";
+
 
 // Specify the data migration function in with-clause
-(with migration = Migration.run)
+
 actor {
   type Product = {
     id : Nat;

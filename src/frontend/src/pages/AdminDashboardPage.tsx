@@ -17,6 +17,13 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
@@ -26,6 +33,7 @@ import {
   ClipboardList,
   Edit2,
   FileText,
+  FolderOpen,
   Image as ImageIcon,
   IndianRupee,
   Link,
@@ -44,11 +52,14 @@ import {
 import { AnimatePresence, motion } from "motion/react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
-import type { Product } from "../backend.d";
+import type { Category, Product } from "../backend.d";
 import {
+  useAddCategory,
   useAddProduct,
+  useDeleteCategory,
   useDeleteProduct,
   useEditProduct,
+  useListCategories,
   useListOrders,
   useListProducts,
 } from "../hooks/useQueries";
@@ -58,14 +69,21 @@ interface ProductForm {
   description: string;
   price: string;
   imageUrl: string;
+  category: string;
 }
 
-const emptyForm: ProductForm = {
-  name: "",
-  description: "",
-  price: "",
-  imageUrl: "",
-};
+const CATEGORY_PALETTE = [
+  "bg-amber-100 text-amber-800 border-amber-200",
+  "bg-green-100 text-green-800 border-green-200",
+  "bg-orange-100 text-orange-800 border-orange-200",
+  "bg-blue-100 text-blue-800 border-blue-200",
+  "bg-purple-100 text-purple-800 border-purple-200",
+  "bg-pink-100 text-pink-800 border-pink-200",
+];
+
+function getCategoryColor(index: number) {
+  return CATEGORY_PALETTE[index % CATEGORY_PALETTE.length];
+}
 
 interface Props {
   onLogout: () => void;
@@ -77,24 +95,51 @@ export default function AdminDashboardPage({ onLogout }: Props) {
   // Product modal state
   const [productDialogOpen, setProductDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState<ProductForm>(emptyForm);
+  const [productForm, setProductForm] = useState<ProductForm>({
+    name: "",
+    description: "",
+    price: "",
+    imageUrl: "",
+    category: "",
+  });
   const [formErrors, setFormErrors] = useState<Partial<ProductForm>>({});
   const [imageMode, setImageMode] = useState<"url" | "upload">("url");
   const [uploadedFileName, setUploadedFileName] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Delete dialog state
+  // Delete product dialog state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
+
+  // Category management state
+  const [newCategoryName, setNewCategoryName] = useState("");
+  const [deletingCategory, setDeletingCategory] = useState<Category | null>(
+    null,
+  );
+  const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] =
+    useState(false);
 
   // ---- Queries ----
   const ordersQuery = useListOrders();
   const productsQuery = useListProducts();
+  const categoriesQuery = useListCategories();
 
   // ---- Mutations ----
   const addProduct = useAddProduct();
   const editProduct = useEditProduct();
   const deleteProduct = useDeleteProduct();
+  const addCategory = useAddCategory();
+  const deleteCategory = useDeleteCategory();
+
+  const categories = categoriesQuery.data ?? [];
+
+  // Build category lookup maps from dynamic data
+  const categoryNameMap: Record<string, string> = {};
+  const categoryColorMap: Record<string, string> = {};
+  categories.forEach((cat, index) => {
+    categoryNameMap[cat.name] = cat.name;
+    categoryColorMap[cat.name] = getCategoryColor(index);
+  });
 
   // ---- Validation ----
   const validateForm = () => {
@@ -117,7 +162,14 @@ export default function AdminDashboardPage({ onLogout }: Props) {
   // ---- Handlers ----
   const openAddDialog = () => {
     setEditingProduct(null);
-    setProductForm(emptyForm);
+    const defaultCat = categories[0]?.name ?? "";
+    setProductForm({
+      name: "",
+      description: "",
+      price: "",
+      imageUrl: "",
+      category: defaultCat,
+    });
     setFormErrors({});
     setImageMode("url");
     setUploadedFileName("");
@@ -131,9 +183,9 @@ export default function AdminDashboardPage({ onLogout }: Props) {
       description: product.description,
       price: String(product.price),
       imageUrl: product.imageUrl,
+      category: product.category || categories[0]?.name || "",
     });
     setFormErrors({});
-    // If existing image looks like a data URL, default to upload mode; otherwise URL mode
     setImageMode(product.imageUrl.startsWith("data:") ? "upload" : "url");
     setUploadedFileName(
       product.imageUrl.startsWith("data:") ? "Existing image" : "",
@@ -144,7 +196,13 @@ export default function AdminDashboardPage({ onLogout }: Props) {
   const closeProductDialog = () => {
     setProductDialogOpen(false);
     setEditingProduct(null);
-    setProductForm(emptyForm);
+    setProductForm({
+      name: "",
+      description: "",
+      price: "",
+      imageUrl: "",
+      category: "",
+    });
     setFormErrors({});
     setImageMode("url");
     setUploadedFileName("");
@@ -172,6 +230,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
           description: productForm.description,
           price: Number.parseFloat(productForm.price),
           imageUrl: productForm.imageUrl,
+          category: productForm.category,
         });
         toast.success("Product updated successfully");
       } else {
@@ -180,6 +239,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
           description: productForm.description,
           price: Number.parseFloat(productForm.price),
           imageUrl: productForm.imageUrl,
+          category: productForm.category,
         });
         toast.success("Product added successfully");
       }
@@ -207,6 +267,41 @@ export default function AdminDashboardPage({ onLogout }: Props) {
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete product");
+    }
+  };
+
+  // ---- Category handlers ----
+  const handleAddCategory = async () => {
+    const name = newCategoryName.trim();
+    if (!name) {
+      toast.error("Please enter a category name");
+      return;
+    }
+    try {
+      await addCategory.mutateAsync(name);
+      toast.success(`Category "${name}" added`);
+      setNewCategoryName("");
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to add category");
+    }
+  };
+
+  const openDeleteCategoryDialog = (cat: Category) => {
+    setDeletingCategory(cat);
+    setDeleteCategoryDialogOpen(true);
+  };
+
+  const handleDeleteCategoryConfirm = async () => {
+    if (!deletingCategory) return;
+    try {
+      await deleteCategory.mutateAsync(deletingCategory.id);
+      toast.success(`Category "${deletingCategory.name}" deleted`);
+      setDeleteCategoryDialogOpen(false);
+      setDeletingCategory(null);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to delete category");
     }
   };
 
@@ -270,7 +365,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
           {/* Stats Summary */}
-          <div className="grid grid-cols-2 gap-4 mb-8">
+          <div className="grid grid-cols-3 gap-4 mb-8">
             <div className="bg-card rounded-2xl border border-border p-5 shadow-card">
               <div className="flex items-center gap-3 mb-2">
                 <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -295,6 +390,19 @@ export default function AdminDashboardPage({ onLogout }: Props) {
               </div>
               <p className="font-display font-bold text-3xl text-foreground">
                 {ordersQuery.isLoading ? "—" : orders.length}
+              </p>
+            </div>
+            <div className="bg-card rounded-2xl border border-border p-5 shadow-card">
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <FolderOpen className="w-5 h-5 text-primary" />
+                </div>
+                <span className="font-body text-sm text-muted-foreground">
+                  Categories
+                </span>
+              </div>
+              <p className="font-display font-bold text-3xl text-foreground">
+                {categoriesQuery.isLoading ? "—" : categories.length}
               </p>
             </div>
           </div>
@@ -322,6 +430,14 @@ export default function AdminDashboardPage({ onLogout }: Props) {
               >
                 <Package className="w-4 h-4" />
                 Products
+              </TabsTrigger>
+              <TabsTrigger
+                value="categories"
+                data-ocid="admin.categories_tab"
+                className="font-display font-semibold text-sm rounded-lg px-5 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+              >
+                <FolderOpen className="w-4 h-4" />
+                Categories
               </TabsTrigger>
             </TabsList>
 
@@ -496,73 +612,212 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                 ) : (
                   <AnimatePresence mode="popLayout">
                     <div className="grid gap-3">
-                      {products.map((product, index) => (
-                        <motion.div
-                          key={product.id.toString()}
-                          layout
-                          initial={{ opacity: 0, x: -16 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          exit={{ opacity: 0, x: 16 }}
-                          transition={{ duration: 0.3, ease: "easeOut" }}
-                          className="bg-card rounded-2xl border border-border shadow-card p-4 flex items-center gap-4"
-                          data-ocid={`products.item.${index + 1}`}
-                        >
-                          {/* Thumbnail */}
-                          <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0">
-                            {product.imageUrl ? (
-                              <img
-                                src={product.imageUrl}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center">
-                                <Package className="w-6 h-6 text-muted-foreground/30" />
+                      {products.map((product, index) => {
+                        const catIndex = categories.findIndex(
+                          (c) => c.name === product.category,
+                        );
+                        const badgeColor =
+                          catIndex >= 0
+                            ? getCategoryColor(catIndex)
+                            : "bg-muted text-muted-foreground border-border";
+                        return (
+                          <motion.div
+                            key={product.id.toString()}
+                            layout
+                            initial={{ opacity: 0, x: -16 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 16 }}
+                            transition={{ duration: 0.3, ease: "easeOut" }}
+                            className="bg-card rounded-2xl border border-border shadow-card p-4 flex items-center gap-4"
+                            data-ocid={`products.item.${index + 1}`}
+                          >
+                            {/* Thumbnail */}
+                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0">
+                              {product.imageUrl ? (
+                                <img
+                                  src={product.imageUrl}
+                                  alt={product.name}
+                                  className="w-full h-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Package className="w-6 h-6 text-muted-foreground/30" />
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Info */}
+                            <div className="flex-1 min-w-0">
+                              <p className="font-display font-bold text-sm text-foreground line-clamp-1">
+                                {product.name}
+                              </p>
+                              <p className="font-body text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                                {product.description}
+                              </p>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <span className="text-xs font-display font-bold text-primary">
+                                  ₹{Number(product.price).toFixed(2)}
+                                </span>
+                                {product.category && (
+                                  <span
+                                    className={`inline-block text-xs font-display font-semibold px-2 py-0.5 rounded-full border ${badgeColor}`}
+                                  >
+                                    {product.category}
+                                  </span>
+                                )}
                               </div>
-                            )}
-                          </div>
+                            </div>
 
-                          {/* Info */}
-                          <div className="flex-1 min-w-0">
-                            <p className="font-display font-bold text-sm text-foreground line-clamp-1">
-                              {product.name}
-                            </p>
-                            <p className="font-body text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                              {product.description}
-                            </p>
-                            <span className="inline-block mt-1.5 text-xs font-display font-bold text-primary">
-                              ₹{Number(product.price).toFixed(2)}
-                            </span>
-                          </div>
+                            {/* Actions */}
+                            <div className="flex items-center gap-2 shrink-0">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openEditDialog(product)}
+                                data-ocid={`admin.edit_button.${index + 1}`}
+                                className="gap-1.5 font-body text-xs border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all h-8 px-3"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                                Edit
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openDeleteDialog(product)}
+                                data-ocid={`admin.delete_button.${index + 1}`}
+                                className="gap-1.5 font-body text-xs border-border hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-all h-8 px-3"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                Delete
+                              </Button>
+                            </div>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </AnimatePresence>
+                )}
+              </div>
+            </TabsContent>
 
-                          {/* Actions */}
-                          <div className="flex items-center gap-2 shrink-0">
+            {/* Categories Tab */}
+            <TabsContent value="categories">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <h2 className="font-display font-bold text-base text-foreground">
+                    Manage Categories
+                  </h2>
+                </div>
+
+                {/* Add Category Form */}
+                <div className="bg-card rounded-2xl border border-border shadow-card p-5">
+                  <h3 className="font-display font-semibold text-sm text-foreground mb-3">
+                    Add New Category
+                  </h3>
+                  <div className="flex gap-3">
+                    <Input
+                      placeholder="e.g. Spices, Beverages..."
+                      value={newCategoryName}
+                      onChange={(e) => setNewCategoryName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") handleAddCategory();
+                      }}
+                      className="font-body rounded-xl h-11 flex-1"
+                      data-ocid="admin.category_name_input"
+                    />
+                    <Button
+                      onClick={handleAddCategory}
+                      disabled={
+                        addCategory.isPending || !newCategoryName.trim()
+                      }
+                      data-ocid="admin.category_add_button"
+                      className="gap-2 bg-primary text-primary-foreground font-body font-semibold text-sm rounded-xl btn-glow shrink-0"
+                    >
+                      {addCategory.isPending ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Plus className="w-4 h-4" />
+                      )}
+                      Add Category
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Categories List */}
+                <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
+                  <div className="px-6 py-4 border-b border-border">
+                    <h3 className="font-display font-semibold text-sm text-foreground">
+                      Existing Categories
+                    </h3>
+                  </div>
+
+                  {categoriesQuery.isLoading ? (
+                    <div
+                      className="p-6 space-y-3"
+                      data-ocid="admin.categories_list.loading_state"
+                    >
+                      {(["c1", "c2", "c3"] as const).map((k) => (
+                        <Skeleton key={k} className="h-14 rounded-xl" />
+                      ))}
+                    </div>
+                  ) : categories.length === 0 ? (
+                    <div
+                      className="py-16 text-center"
+                      data-ocid="admin.categories_list.empty_state"
+                    >
+                      <FolderOpen className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
+                      <p className="font-display font-semibold text-foreground mb-1">
+                        No categories yet
+                      </p>
+                      <p className="font-body text-sm text-muted-foreground">
+                        Add your first category above to organise products.
+                      </p>
+                    </div>
+                  ) : (
+                    <AnimatePresence mode="popLayout">
+                      <div className="divide-y divide-border">
+                        {categories.map((cat, index) => (
+                          <motion.div
+                            key={cat.id.toString()}
+                            layout
+                            initial={{ opacity: 0, x: -16 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 16 }}
+                            transition={{ duration: 0.25, ease: "easeOut" }}
+                            className="flex items-center justify-between px-6 py-4"
+                            data-ocid={`admin.categories_list.item.${index + 1}`}
+                          >
+                            <div className="flex items-center gap-3">
+                              <span
+                                className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-display font-bold ${getCategoryColor(index)}`}
+                              >
+                                {index + 1}
+                              </span>
+                              <span className="font-body font-medium text-sm text-foreground">
+                                {cat.name}
+                              </span>
+                              <span
+                                className={`text-xs font-display font-semibold px-2 py-0.5 rounded-full border ${getCategoryColor(index)}`}
+                              >
+                                {cat.name}
+                              </span>
+                            </div>
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => openEditDialog(product)}
-                              data-ocid={`admin.edit_button.${index + 1}`}
-                              className="gap-1.5 font-body text-xs border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all h-8 px-3"
-                            >
-                              <Edit2 className="w-3.5 h-3.5" />
-                              Edit
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDeleteDialog(product)}
-                              data-ocid={`admin.delete_button.${index + 1}`}
+                              onClick={() => openDeleteCategoryDialog(cat)}
+                              data-ocid={`admin.category_delete_button.${index + 1}`}
                               className="gap-1.5 font-body text-xs border-border hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-all h-8 px-3"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                               Delete
                             </Button>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </AnimatePresence>
-                )}
+                          </motion.div>
+                        ))}
+                      </div>
+                    </AnimatePresence>
+                  )}
+                </div>
               </div>
             </TabsContent>
           </Tabs>
@@ -675,6 +930,54 @@ export default function AdminDashboardPage({ onLogout }: Props) {
               {formErrors.price && (
                 <p className="text-destructive text-xs font-body">
                   {formErrors.price}
+                </p>
+              )}
+            </div>
+
+            {/* Category */}
+            <div className="space-y-1.5">
+              <Label
+                htmlFor="prod-category"
+                className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
+              >
+                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
+                Category
+              </Label>
+              <Select
+                value={productForm.category}
+                onValueChange={(value) => updateField("category", value)}
+                disabled={categoriesQuery.isLoading || categories.length === 0}
+              >
+                <SelectTrigger
+                  id="prod-category"
+                  className="font-body rounded-xl h-11"
+                  data-ocid="admin.product_category_select"
+                >
+                  <SelectValue
+                    placeholder={
+                      categoriesQuery.isLoading
+                        ? "Loading categories..."
+                        : categories.length === 0
+                          ? "No categories — add some first"
+                          : "Select a category"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((cat) => (
+                    <SelectItem
+                      key={cat.id.toString()}
+                      value={cat.name}
+                      className="font-body"
+                    >
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {categories.length === 0 && !categoriesQuery.isLoading && (
+                <p className="text-muted-foreground text-xs font-body">
+                  Go to the Categories tab to add categories first.
                 </p>
               )}
             </div>
@@ -815,7 +1118,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
+      {/* Delete Product Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent
           className="rounded-2xl bg-card sm:max-w-md"
@@ -865,6 +1168,66 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                 <>
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Product
+                </>
+              )}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Delete Category Confirmation Dialog */}
+      <AlertDialog
+        open={deleteCategoryDialogOpen}
+        onOpenChange={setDeleteCategoryDialogOpen}
+      >
+        <AlertDialogContent
+          className="rounded-2xl bg-card sm:max-w-md"
+          data-ocid="admin.delete_category_dialog"
+        >
+          <AlertDialogHeader>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-destructive" />
+              </div>
+              <AlertDialogTitle className="font-display font-bold text-xl text-foreground">
+                Delete Category?
+              </AlertDialogTitle>
+            </div>
+            <AlertDialogDescription className="font-body text-sm text-muted-foreground leading-relaxed">
+              You're about to delete the category{" "}
+              <strong className="text-foreground">
+                "{deletingCategory?.name}"
+              </strong>
+              . Products in this category will remain but will no longer be
+              associated with it.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter className="gap-2 mt-2">
+            <Button
+              variant="outline"
+              onClick={() => setDeleteCategoryDialogOpen(false)}
+              data-ocid="admin.delete_category_cancel_button"
+              className="font-display font-semibold rounded-xl flex-1 border-border"
+              disabled={deleteCategory.isPending}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteCategoryConfirm}
+              disabled={deleteCategory.isPending}
+              data-ocid="admin.delete_category_confirm_button"
+              className="font-display font-semibold rounded-xl flex-1"
+            >
+              {deleteCategory.isPending ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Delete Category
                 </>
               )}
             </Button>

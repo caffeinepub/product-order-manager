@@ -10,6 +10,7 @@ import type { ActorMethod } from '@icp-sdk/core/agent';
 import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
+export interface Category { 'id' : bigint, 'name' : string }
 export interface Order {
   'id' : bigint,
   'customerName' : string,
@@ -24,19 +25,23 @@ export interface Product {
   'name' : string,
   'description' : string,
   'imageUrl' : string,
+  'category' : string,
   'price' : number,
 }
 export type Time = bigint;
 export interface _SERVICE {
+  'addCategory' : ActorMethod<[string, string], bigint>,
   'addProduct' : ActorMethod<
-    [string, string, string, number, string],
+    [string, string, string, number, string, string],
     undefined
   >,
+  'deleteCategory' : ActorMethod<[string, bigint], undefined>,
   'deleteProduct' : ActorMethod<[string, bigint], undefined>,
   'editProduct' : ActorMethod<
-    [string, bigint, string, string, number, string],
+    [string, bigint, string, string, number, string, string],
     undefined
   >,
+  'listCategories' : ActorMethod<[], Array<Category>>,
   'listOrders' : ActorMethod<[string], Array<Order>>,
   'listProducts' : ActorMethod<[], Array<Product>>,
   'submitOrder' : ActorMethod<

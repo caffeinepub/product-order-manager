@@ -1,6 +1,5 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Float "mo:core/Float";
 
 module {
   type Product = {
@@ -9,18 +8,10 @@ module {
     description : Text;
     price : Float;
     imageUrl : Text;
+    category : Text;
   };
 
-  type OldOrder = {
-    id : Nat;
-    productId : Nat;
-    productName : Text;
-    customerName : Text;
-    contactNumber : Text;
-    timestamp : Int;
-  };
-
-  type NewOrder = {
+  type Order = {
     id : Nat;
     productId : Nat;
     productName : Text;
@@ -30,31 +21,34 @@ module {
     timestamp : Int;
   };
 
+  type Category = {
+    id : Nat;
+    name : Text;
+  };
+
   type OldActor = {
     nextProductId : Nat;
     nextOrderId : Nat;
     products : Map.Map<Nat, Product>;
-    orders : Map.Map<Nat, OldOrder>;
+    orders : Map.Map<Nat, Order>;
     adminPin : Text;
   };
 
   type NewActor = {
     nextProductId : Nat;
     nextOrderId : Nat;
+    nextCategoryId : Nat;
     products : Map.Map<Nat, Product>;
-    orders : Map.Map<Nat, NewOrder>;
+    orders : Map.Map<Nat, Order>;
+    categories : Map.Map<Nat, Category>;
     adminPin : Text;
   };
 
   public func run(old : OldActor) : NewActor {
-    let newOrders = old.orders.map<Nat, OldOrder, NewOrder>(
-      func(_id, oldOrder) {
-        {
-          oldOrder with
-          cityName = ""
-        };
-      }
-    );
-    { old with orders = newOrders };
+    {
+      old with
+      nextCategoryId = 1;
+      categories = Map.empty<Nat, Category>();
+    };
   };
 };

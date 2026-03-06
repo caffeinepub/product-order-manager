@@ -22,12 +22,20 @@ export interface Product {
     name: string;
     description: string;
     imageUrl: string;
+    category: string;
     price: number;
 }
+export interface Category {
+    id: bigint;
+    name: string;
+}
 export interface backendInterface {
-    addProduct(pin: string, name: string, description: string, price: number, imageUrl: string): Promise<void>;
+    addCategory(pin: string, name: string): Promise<bigint>;
+    addProduct(pin: string, name: string, description: string, price: number, imageUrl: string, category: string): Promise<void>;
+    deleteCategory(pin: string, id: bigint): Promise<void>;
     deleteProduct(pin: string, id: bigint): Promise<void>;
-    editProduct(pin: string, id: bigint, name: string, description: string, price: number, imageUrl: string): Promise<void>;
+    editProduct(pin: string, id: bigint, name: string, description: string, price: number, imageUrl: string, category: string): Promise<void>;
+    listCategories(): Promise<Array<Category>>;
     listOrders(pin: string): Promise<Array<Order>>;
     listProducts(): Promise<Array<Product>>;
     submitOrder(productId: bigint, productName: string, customerName: string, contactNumber: string, cityName: string): Promise<void>;

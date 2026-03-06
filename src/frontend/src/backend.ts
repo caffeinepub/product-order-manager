@@ -104,12 +104,20 @@ export interface Product {
     name: string;
     description: string;
     imageUrl: string;
+    category: string;
     price: number;
 }
+export interface Category {
+    id: bigint;
+    name: string;
+}
 export interface backendInterface {
-    addProduct(pin: string, name: string, description: string, price: number, imageUrl: string): Promise<void>;
+    addCategory(pin: string, name: string): Promise<bigint>;
+    addProduct(pin: string, name: string, description: string, price: number, imageUrl: string, category: string): Promise<void>;
+    deleteCategory(pin: string, id: bigint): Promise<void>;
     deleteProduct(pin: string, id: bigint): Promise<void>;
-    editProduct(pin: string, id: bigint, name: string, description: string, price: number, imageUrl: string): Promise<void>;
+    editProduct(pin: string, id: bigint, name: string, description: string, price: number, imageUrl: string, category: string): Promise<void>;
+    listCategories(): Promise<Array<Category>>;
     listOrders(pin: string): Promise<Array<Order>>;
     listProducts(): Promise<Array<Product>>;
     submitOrder(productId: bigint, productName: string, customerName: string, contactNumber: string, cityName: string): Promise<void>;
@@ -117,17 +125,45 @@ export interface backendInterface {
 }
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
-    async addProduct(arg0: string, arg1: string, arg2: string, arg3: number, arg4: string): Promise<void> {
+    async addCategory(arg0: string, arg1: string): Promise<bigint> {
         if (this.processError) {
             try {
-                const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4);
+                const result = await this.actor.addCategory(arg0, arg1);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4);
+            const result = await this.actor.addCategory(arg0, arg1);
+            return result;
+        }
+    }
+    async addProduct(arg0: string, arg1: string, arg2: string, arg3: number, arg4: string, arg5: string): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.addProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+            return result;
+        }
+    }
+    async deleteCategory(arg0: string, arg1: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deleteCategory(arg0, arg1);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deleteCategory(arg0, arg1);
             return result;
         }
     }
@@ -145,17 +181,31 @@ export class Backend implements backendInterface {
             return result;
         }
     }
-    async editProduct(arg0: string, arg1: bigint, arg2: string, arg3: string, arg4: number, arg5: string): Promise<void> {
+    async editProduct(arg0: string, arg1: bigint, arg2: string, arg3: string, arg4: number, arg5: string, arg6: string): Promise<void> {
         if (this.processError) {
             try {
-                const result = await this.actor.editProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+                const result = await this.actor.editProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
                 return result;
             } catch (e) {
                 this.processError(e);
                 throw new Error("unreachable");
             }
         } else {
-            const result = await this.actor.editProduct(arg0, arg1, arg2, arg3, arg4, arg5);
+            const result = await this.actor.editProduct(arg0, arg1, arg2, arg3, arg4, arg5, arg6);
+            return result;
+        }
+    }
+    async listCategories(): Promise<Array<Category>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.listCategories();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.listCategories();
             return result;
         }
     }

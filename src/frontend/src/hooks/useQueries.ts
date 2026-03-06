@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Order, Product } from "../backend.d";
+import type { Category, Order, Product } from "../backend.d";
 import { useActor } from "./useActor";
 
 const ADMIN_PIN = "0852";
@@ -75,14 +75,23 @@ export function useAddProduct() {
       description,
       price,
       imageUrl,
+      category,
     }: {
       name: string;
       description: string;
       price: number;
       imageUrl: string;
+      category: string;
     }) => {
       if (!actor) throw new Error("No actor");
-      return actor.addProduct(ADMIN_PIN, name, description, price, imageUrl);
+      return actor.addProduct(
+        ADMIN_PIN,
+        name,
+        description,
+        price,
+        imageUrl,
+        category,
+      );
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
@@ -101,12 +110,14 @@ export function useEditProduct() {
       description,
       price,
       imageUrl,
+      category,
     }: {
       id: bigint;
       name: string;
       description: string;
       price: number;
       imageUrl: string;
+      category: string;
     }) => {
       if (!actor) throw new Error("No actor");
       return actor.editProduct(
@@ -116,6 +127,7 @@ export function useEditProduct() {
         description,
         price,
         imageUrl,
+        category,
       );
     },
     onSuccess: () => {
@@ -136,6 +148,46 @@ export function useDeleteProduct() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["products"] });
       queryClient.invalidateQueries({ queryKey: ["admin-products"] });
+    },
+  });
+}
+
+export function useListCategories() {
+  const { actor, isFetching } = useActor();
+  return useQuery<Category[]>({
+    queryKey: ["categories"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.listCategories();
+    },
+    enabled: !!actor && !isFetching,
+  });
+}
+
+export function useAddCategory() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (name: string) => {
+      if (!actor) throw new Error("No actor");
+      return actor.addCategory(ADMIN_PIN, name);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
+    },
+  });
+}
+
+export function useDeleteCategory() {
+  const { actor } = useActor();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("No actor");
+      return actor.deleteCategory(ADMIN_PIN, id);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["categories"] });
     },
   });
 }

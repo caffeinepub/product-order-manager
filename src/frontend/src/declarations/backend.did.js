@@ -8,6 +8,7 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const Category = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
 export const Time = IDL.Int;
 export const Order = IDL.Record({
   'id' : IDL.Nat,
@@ -23,21 +24,25 @@ export const Product = IDL.Record({
   'name' : IDL.Text,
   'description' : IDL.Text,
   'imageUrl' : IDL.Text,
+  'category' : IDL.Text,
   'price' : IDL.Float64,
 });
 
 export const idlService = IDL.Service({
+  'addCategory' : IDL.Func([IDL.Text, IDL.Text], [IDL.Nat], []),
   'addProduct' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
+      [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
       [],
       [],
     ),
+  'deleteCategory' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'deleteProduct' : IDL.Func([IDL.Text, IDL.Nat], [], []),
   'editProduct' : IDL.Func(
-      [IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
+      [IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
       [],
       [],
     ),
+  'listCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
   'listOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], ['query']),
   'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
   'submitOrder' : IDL.Func(
@@ -51,6 +56,7 @@ export const idlService = IDL.Service({
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const Category = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
   const Time = IDL.Int;
   const Order = IDL.Record({
     'id' : IDL.Nat,
@@ -66,21 +72,33 @@ export const idlFactory = ({ IDL }) => {
     'name' : IDL.Text,
     'description' : IDL.Text,
     'imageUrl' : IDL.Text,
+    'category' : IDL.Text,
     'price' : IDL.Float64,
   });
   
   return IDL.Service({
+    'addCategory' : IDL.Func([IDL.Text, IDL.Text], [IDL.Nat], []),
     'addProduct' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
+        [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
         [],
         [],
       ),
+    'deleteCategory' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'deleteProduct' : IDL.Func([IDL.Text, IDL.Nat], [], []),
     'editProduct' : IDL.Func(
-        [IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Text],
+        [
+          IDL.Text,
+          IDL.Nat,
+          IDL.Text,
+          IDL.Text,
+          IDL.Float64,
+          IDL.Text,
+          IDL.Text,
+        ],
         [],
         [],
       ),
+    'listCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
     'listOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], ['query']),
     'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
     'submitOrder' : IDL.Func(

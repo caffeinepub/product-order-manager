@@ -1,3 +1,4 @@
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -9,6 +10,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CheckCircle2,
   Loader2,
@@ -23,7 +25,26 @@ import { AnimatePresence, motion } from "motion/react";
 import { useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
-import { useListProducts, useSubmitOrder } from "../hooks/useQueries";
+import {
+  useListCategories,
+  useListProducts,
+  useSubmitOrder,
+} from "../hooks/useQueries";
+
+type CategoryKey = string;
+
+const CATEGORY_PALETTE = [
+  "bg-amber-100 text-amber-800 border-amber-200",
+  "bg-green-100 text-green-800 border-green-200",
+  "bg-orange-100 text-orange-800 border-orange-200",
+  "bg-blue-100 text-blue-800 border-blue-200",
+  "bg-purple-100 text-purple-800 border-purple-200",
+  "bg-pink-100 text-pink-800 border-pink-200",
+];
+
+function getCategoryColor(index: number) {
+  return CATEGORY_PALETTE[index % CATEGORY_PALETTE.length];
+}
 
 const SAMPLE_PRODUCTS: Product[] = [
   {
@@ -33,6 +54,7 @@ const SAMPLE_PRODUCTS: Product[] = [
       "Slow-fermented 72-hour sourdough with a golden crackling crust and tender open crumb. Baked fresh daily using heritage wheat flour.",
     price: 12.5,
     imageUrl: "/assets/generated/food-sourdough.dim_600x400.jpg",
+    category: "Groceries",
   },
   {
     id: BigInt(2),
@@ -41,6 +63,7 @@ const SAMPLE_PRODUCTS: Product[] = [
       "A curated board of three hand-selected aged cheeses — nutty Comté, creamy Manchego, and tangy aged cheddar. Perfect for entertaining.",
     price: 34.0,
     imageUrl: "/assets/generated/food-cheese.dim_600x400.jpg",
+    category: "Groceries",
   },
   {
     id: BigInt(3),
@@ -49,6 +72,7 @@ const SAMPLE_PRODUCTS: Product[] = [
       "Single-origin extra virgin olive oil, cold-pressed from hand-harvested Arbequina olives. Fruity, peppery finish. 500ml dark glass bottle.",
     price: 24.95,
     imageUrl: "/assets/generated/food-olive-oil.dim_600x400.jpg",
+    category: "Pickles",
   },
   {
     id: BigInt(4),
@@ -57,6 +81,7 @@ const SAMPLE_PRODUCTS: Product[] = [
       "Our house-blended aromatic mix of warming spices: smoked paprika, cumin, coriander, turmeric, and a hint of chili. 80g resealable pouch.",
     price: 9.99,
     imageUrl: "/assets/generated/food-spice-blend.dim_600x400.jpg",
+    category: "Groceries",
   },
   {
     id: BigInt(5),
@@ -65,6 +90,7 @@ const SAMPLE_PRODUCTS: Product[] = [
       "Unfiltered, unpasteurized honey harvested from meadow wildflowers. Rich, complex floral notes. 350g glass jar with wooden dipper.",
     price: 18.0,
     imageUrl: "/assets/generated/food-honey.dim_600x400.jpg",
+    category: "Dry Fruits",
   },
   {
     id: BigInt(6),
@@ -73,6 +99,7 @@ const SAMPLE_PRODUCTS: Product[] = [
       "Handmade tagliatelle crafted with free-range eggs and semolina. Ready to cook in 2 minutes. Serves 2. Made to order, same-day delivery.",
     price: 8.5,
     imageUrl: "/assets/generated/food-fresh-pasta.dim_600x400.jpg",
+    category: "Groceries",
   },
 ];
 
@@ -87,6 +114,7 @@ interface OrderForm {
 }
 
 export default function PublicStorePage({ onAdminClick }: Props) {
+  const [activeTab, setActiveTab] = useState<CategoryKey>("all");
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [orderForm, setOrderForm] = useState<OrderForm>({
     customerName: "",
@@ -97,10 +125,30 @@ export default function PublicStorePage({ onAdminClick }: Props) {
   const [formErrors, setFormErrors] = useState<Partial<OrderForm>>({});
 
   const { data: products, isLoading } = useListProducts();
+  const categoriesQuery = useListCategories();
   const submitOrder = useSubmitOrder();
 
-  const displayProducts =
+  const allProducts =
     products && products.length > 0 ? products : SAMPLE_PRODUCTS;
+
+  const categories = categoriesQuery.data ?? [];
+
+  // Build a color map indexed by category name
+  const categoryColorMap: Record<string, string> = {};
+  categories.forEach((cat, index) => {
+    categoryColorMap[cat.name] = getCategoryColor(index);
+  });
+
+  // Derive active tab label for empty state text
+  const activeTabLabel =
+    activeTab === "all"
+      ? "All"
+      : (categories.find((c) => c.name === activeTab)?.name ?? activeTab);
+
+  const displayProducts =
+    activeTab === "all"
+      ? allProducts
+      : allProducts.filter((p) => p.category === activeTab);
 
   const validate = () => {
     const errors: Partial<OrderForm> = {};
@@ -186,7 +234,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
       </header>
 
       {/* Hero */}
-      <section className="relative pt-16 pb-12 overflow-hidden">
+      <section className="relative pt-16 pb-10 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/6 via-transparent to-transparent pointer-events-none" />
         <div className="container max-w-7xl mx-auto px-4 sm:px-6 text-center">
           <motion.div
@@ -206,6 +254,44 @@ export default function PublicStorePage({ onAdminClick }: Props) {
           </motion.div>
         </div>
       </section>
+
+      {/* Category Tabs */}
+      <div className="container max-w-7xl mx-auto px-4 sm:px-6 pb-6">
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as CategoryKey)}
+        >
+          <TabsList className="bg-muted rounded-xl p-1 h-auto w-full sm:w-auto overflow-x-auto flex">
+            {/* All tab always first */}
+            <TabsTrigger
+              value="all"
+              data-ocid="store.all_tab"
+              className="font-display font-semibold text-sm rounded-lg px-4 py-2 whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all"
+            >
+              All
+            </TabsTrigger>
+
+            {/* Dynamic category tabs */}
+            {categoriesQuery.isLoading
+              ? // Loading skeleton tabs
+                [1, 2, 3].map((i) => (
+                  <div key={i} className="px-4 py-2">
+                    <Skeleton className="h-4 w-16 rounded" />
+                  </div>
+                ))
+              : categories.map((cat, index) => (
+                  <TabsTrigger
+                    key={cat.id.toString()}
+                    value={cat.name}
+                    data-ocid={`store.category_tab.${index + 1}`}
+                    className="font-display font-semibold text-sm rounded-lg px-4 py-2 whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all"
+                  >
+                    {cat.name}
+                  </TabsTrigger>
+                ))}
+          </TabsList>
+        </Tabs>
+      </div>
 
       {/* Products Grid */}
       <main className="container max-w-7xl mx-auto px-4 sm:px-6 pb-20">
@@ -235,10 +321,14 @@ export default function PublicStorePage({ onAdminClick }: Props) {
               <Package className="w-8 h-8 text-muted-foreground" />
             </div>
             <h2 className="font-display font-bold text-xl text-foreground mb-2">
-              No products yet
+              {activeTab === "all"
+                ? "No products yet"
+                : `No ${activeTabLabel} available`}
             </h2>
             <p className="text-muted-foreground">
-              Check back soon for new arrivals.
+              {activeTab === "all"
+                ? "Check back soon for new arrivals."
+                : "Check back soon or browse another category."}
             </p>
           </div>
         ) : (
@@ -248,55 +338,76 @@ export default function PublicStorePage({ onAdminClick }: Props) {
             variants={containerVariants}
             initial="hidden"
             animate="visible"
+            key={activeTab}
           >
-            {displayProducts.map((product, index) => (
-              <motion.article
-                key={product.id.toString()}
-                data-ocid={`products.item.${index + 1}`}
-                variants={cardVariants}
-                className="bg-card rounded-2xl overflow-hidden border border-border shadow-card card-lift group cursor-default"
-              >
-                {/* Product Image */}
-                <div className="relative overflow-hidden bg-muted h-52">
-                  {product.imageUrl ? (
-                    <img
-                      src={product.imageUrl}
-                      alt={product.name}
-                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center">
-                      <Package className="w-12 h-12 text-muted-foreground/30" />
+            {displayProducts.map((product, index) => {
+              const catIndex = categories.findIndex(
+                (c) => c.name === product.category,
+              );
+              const badgeColor =
+                catIndex >= 0
+                  ? getCategoryColor(catIndex)
+                  : "bg-muted text-muted-foreground border-border";
+
+              return (
+                <motion.article
+                  key={product.id.toString()}
+                  data-ocid={`products.item.${index + 1}`}
+                  variants={cardVariants}
+                  className="bg-card rounded-2xl overflow-hidden border border-border shadow-card card-lift group cursor-default"
+                >
+                  {/* Product Image */}
+                  <div className="relative overflow-hidden bg-muted h-52">
+                    {product.imageUrl ? (
+                      <img
+                        src={product.imageUrl}
+                        alt={product.name}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center">
+                        <Package className="w-12 h-12 text-muted-foreground/30" />
+                      </div>
+                    )}
+                    <div className="absolute top-3 right-3">
+                      <span className="price-pill font-body font-semibold text-sm px-3 py-1 rounded-full backdrop-blur-sm">
+                        ₹{Number(product.price).toFixed(2)}
+                      </span>
                     </div>
-                  )}
-                  <div className="absolute top-3 right-3">
-                    <span className="price-pill font-body font-semibold text-sm px-3 py-1 rounded-full backdrop-blur-sm">
-                      ₹{Number(product.price).toFixed(2)}
-                    </span>
                   </div>
-                </div>
 
-                {/* Card Body */}
-                <div className="p-5">
-                  <h2 className="font-display font-bold text-base text-foreground mb-2 leading-snug line-clamp-1">
-                    {product.name}
-                  </h2>
-                  <p className="font-body text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-5">
-                    {product.description}
-                  </p>
+                  {/* Card Body */}
+                  <div className="p-5">
+                    <h2 className="font-display font-bold text-base text-foreground mb-1.5 leading-snug line-clamp-1">
+                      {product.name}
+                    </h2>
 
-                  <Button
-                    className="w-full gap-2 font-body font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 btn-glow transition-all rounded-xl h-10"
-                    onClick={() => setSelectedProduct(product)}
-                    data-ocid={`products.order_button.${index + 1}`}
-                  >
-                    <ShoppingBag className="w-4 h-4" />
-                    Order Now
-                  </Button>
-                </div>
-              </motion.article>
-            ))}
+                    {/* Category Badge */}
+                    {product.category && (
+                      <span
+                        className={`inline-block text-xs font-display font-semibold px-2 py-0.5 rounded-full border mb-2.5 ${badgeColor}`}
+                      >
+                        {product.category}
+                      </span>
+                    )}
+
+                    <p className="font-body text-sm text-muted-foreground leading-relaxed line-clamp-2 mb-5">
+                      {product.description}
+                    </p>
+
+                    <Button
+                      className="w-full gap-2 font-body font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 btn-glow transition-all rounded-xl h-10"
+                      onClick={() => setSelectedProduct(product)}
+                      data-ocid={`products.order_button.${index + 1}`}
+                    >
+                      <ShoppingBag className="w-4 h-4" />
+                      Order Now
+                    </Button>
+                  </div>
+                </motion.article>
+              );
+            })}
           </motion.div>
         )}
       </main>

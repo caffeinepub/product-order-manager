@@ -365,43 +365,43 @@ export default function AdminDashboardPage({ onLogout }: Props) {
           transition={{ duration: 0.4, ease: "easeOut" }}
         >
           {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
-            <div className="bg-card rounded-2xl border border-border p-5 shadow-card">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Package className="w-5 h-5 text-primary" />
+          <div className="grid grid-cols-3 gap-3 mb-8">
+            <div className="bg-card rounded-2xl border border-border p-3 sm:p-5 shadow-card">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
-                <span className="font-body text-sm text-muted-foreground">
+                <span className="font-body text-xs sm:text-sm text-muted-foreground">
                   Products
                 </span>
               </div>
-              <p className="font-display font-bold text-3xl text-foreground">
+              <p className="font-display font-bold text-2xl sm:text-3xl text-foreground">
                 {productsQuery.isLoading ? "—" : products.length}
               </p>
             </div>
-            <div className="bg-card rounded-2xl border border-border p-5 shadow-card">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <ClipboardList className="w-5 h-5 text-primary" />
+            <div className="bg-card rounded-2xl border border-border p-3 sm:p-5 shadow-card">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
-                <span className="font-body text-sm text-muted-foreground">
+                <span className="font-body text-xs sm:text-sm text-muted-foreground">
                   Orders
                 </span>
               </div>
-              <p className="font-display font-bold text-3xl text-foreground">
+              <p className="font-display font-bold text-2xl sm:text-3xl text-foreground">
                 {ordersQuery.isLoading ? "—" : orders.length}
               </p>
             </div>
-            <div className="bg-card rounded-2xl border border-border p-5 shadow-card">
-              <div className="flex items-center gap-3 mb-2">
-                <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <FolderOpen className="w-5 h-5 text-primary" />
+            <div className="bg-card rounded-2xl border border-border p-3 sm:p-5 shadow-card">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                  <FolderOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
                 </div>
-                <span className="font-body text-sm text-muted-foreground">
+                <span className="font-body text-xs sm:text-sm text-muted-foreground">
                   Categories
                 </span>
               </div>
-              <p className="font-display font-bold text-3xl text-foreground">
+              <p className="font-display font-bold text-2xl sm:text-3xl text-foreground">
                 {categoriesQuery.isLoading ? "—" : categories.length}
               </p>
             </div>
@@ -409,14 +409,14 @@ export default function AdminDashboardPage({ onLogout }: Props) {
 
           {/* Tabs */}
           <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-muted rounded-xl p-1 mb-6 h-auto">
+            <TabsList className="bg-muted rounded-xl p-1 mb-6 h-auto w-full grid grid-cols-3">
               <TabsTrigger
                 value="orders"
                 data-ocid="admin.orders_tab"
-                className="font-display font-semibold text-sm rounded-lg px-5 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+                className="font-display font-semibold text-xs sm:text-sm rounded-lg px-2 sm:px-5 py-2.5 gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
               >
-                <ClipboardList className="w-4 h-4" />
-                Orders
+                <ClipboardList className="w-4 h-4 shrink-0" />
+                <span>Orders</span>
                 {orders.length > 0 && (
                   <Badge className="bg-primary text-primary-foreground text-xs px-1.5 py-0 h-5 min-w-5 rounded-full font-display font-bold">
                     {orders.length}
@@ -426,18 +426,18 @@ export default function AdminDashboardPage({ onLogout }: Props) {
               <TabsTrigger
                 value="products"
                 data-ocid="admin.products_tab"
-                className="font-display font-semibold text-sm rounded-lg px-5 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+                className="font-display font-semibold text-xs sm:text-sm rounded-lg px-2 sm:px-5 py-2.5 gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
               >
-                <Package className="w-4 h-4" />
-                Products
+                <Package className="w-4 h-4 shrink-0" />
+                <span>Products</span>
               </TabsTrigger>
               <TabsTrigger
                 value="categories"
                 data-ocid="admin.categories_tab"
-                className="font-display font-semibold text-sm rounded-lg px-5 py-2.5 gap-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+                className="font-display font-semibold text-xs sm:text-sm rounded-lg px-2 sm:px-5 py-2.5 gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
               >
-                <FolderOpen className="w-4 h-4" />
-                Categories
+                <FolderOpen className="w-4 h-4 shrink-0" />
+                <span>Categories</span>
               </TabsTrigger>
             </TabsList>
 
@@ -669,7 +669,7 @@ export default function AdminDashboardPage({ onLogout }: Props) {
                             </div>
 
                             {/* Actions */}
-                            <div className="flex items-center gap-2 shrink-0">
+                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-2 shrink-0">
                               <Button
                                 variant="outline"
                                 size="sm"

@@ -10,7 +10,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   CheckCircle2,
   Download,
@@ -320,42 +319,38 @@ export default function PublicStorePage({ onAdminClick }: Props) {
         </div>
       </section>
 
-      {/* Category Tabs */}
+      {/* Category Buttons */}
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 pb-6">
-        <Tabs
-          value={activeTab}
-          onValueChange={(v) => setActiveTab(v as CategoryKey)}
-        >
-          <TabsList className="bg-muted rounded-xl p-1 h-auto w-full sm:w-auto overflow-x-auto flex">
-            {/* All tab always first */}
-            <TabsTrigger
-              value="all"
-              data-ocid="store.all_tab"
-              className="font-display font-semibold text-sm rounded-lg px-4 py-2 whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all"
-            >
-              All
-            </TabsTrigger>
+        <div className="grid grid-cols-3 gap-2 w-full sm:max-w-sm">
+          {/* All button always first */}
+          <Button
+            variant={activeTab === "all" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setActiveTab("all")}
+            data-ocid="store.all_tab"
+            className="font-display font-semibold text-sm rounded-xl h-10 transition-all"
+          >
+            All
+          </Button>
 
-            {/* Dynamic category tabs */}
-            {categoriesQuery.isLoading
-              ? // Loading skeleton tabs
-                [1, 2, 3].map((i) => (
-                  <div key={i} className="px-4 py-2">
-                    <Skeleton className="h-4 w-16 rounded" />
-                  </div>
-                ))
-              : categories.map((cat, index) => (
-                  <TabsTrigger
-                    key={cat.id.toString()}
-                    value={cat.name}
-                    data-ocid={`store.category_tab.${index + 1}`}
-                    className="font-display font-semibold text-sm rounded-lg px-4 py-2 whitespace-nowrap data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:text-primary transition-all"
-                  >
-                    {cat.name}
-                  </TabsTrigger>
-                ))}
-          </TabsList>
-        </Tabs>
+          {/* Dynamic category buttons */}
+          {categoriesQuery.isLoading
+            ? [1, 2, 3].map((i) => (
+                <Skeleton key={i} className="h-10 w-full rounded-xl" />
+              ))
+            : categories.map((cat, index) => (
+                <Button
+                  key={cat.id.toString()}
+                  variant={activeTab === cat.name ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setActiveTab(cat.name)}
+                  data-ocid={`store.category_tab.${index + 1}`}
+                  className="font-display font-semibold text-sm rounded-xl h-10 transition-all"
+                >
+                  {cat.name}
+                </Button>
+              ))}
+        </div>
       </div>
 
       {/* Products Grid */}

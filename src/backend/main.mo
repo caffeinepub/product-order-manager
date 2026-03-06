@@ -3,12 +3,9 @@ import Nat "mo:core/Nat";
 import Float "mo:core/Float";
 import Iter "mo:core/Iter";
 import Runtime "mo:core/Runtime";
-
 import Time "mo:core/Time";
 
 
-
-// Specify the data migration function in with-clause
 
 actor {
   type Product = {
@@ -39,14 +36,13 @@ actor {
   var nextOrderId = 1;
   var nextCategoryId = 1;
 
-  // Store products, orders, and categories in persistent maps
   let products = Map.empty<Nat, Product>();
   let orders = Map.empty<Nat, Order>();
   let categories = Map.empty<Nat, Category>();
 
   var adminPin = "0852";
 
-  func verifyAdmin(pin : Text) {
+  func verifyAdmin(pin : Text) : () {
     if (pin != adminPin) { Runtime.trap("Invalid PIN!") };
   };
 

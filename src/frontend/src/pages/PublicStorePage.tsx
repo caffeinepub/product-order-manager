@@ -9,6 +9,15 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CheckCircle2,
@@ -16,20 +25,21 @@ import {
   Loader2,
   Lock,
   MapPin,
+  Minus,
   Package,
   Phone,
+  Plus,
   ShoppingBag,
+  ShoppingCart,
+  Trash2,
   User,
 } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
-import {
-  useListCategories,
-  useListProducts,
-  useSubmitOrder,
-} from "../hooks/useQueries";
+import { useActor } from "../hooks/useActor";
+import { useListCategories, useListProducts } from "../hooks/useQueries";
 
 type CategoryKey = string;
 
@@ -107,6 +117,11 @@ interface Props {
   onAdminClick: () => void;
 }
 
+interface CartItem {
+  product: Product;
+  quantity: number;
+}
+
 interface OrderForm {
   customerName: string;
   contactNumber: string;
@@ -119,6 +134,21 @@ export default function PublicStorePage({ onAdminClick }: Props) {
   const [_hasPrompt, setHasPrompt] = useState(false);
   const promptRef = useRef<Event | null>(null);
 
+  // Cart state
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [orderForm, setOrderForm] = useState<OrderForm>({
+    customerName: "",
+    contactNumber: "",
+    cityName: "",
+  });
+  const [orderSuccess, setOrderSuccess] = useState(false);
+  const [formErrors, setFormErrors] = useState<Partial<OrderForm>>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { actor } = useActor();
+
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault();
@@ -127,7 +157,6 @@ export default function PublicStorePage({ onAdminClick }: Props) {
     };
     window.addEventListener("beforeinstallprompt", handler);
 
-    // Hide if already installed
     const mq = window.matchMedia("(display-mode: standalone)");
     if (mq.matches) setIsInstalled(true);
     const mqHandler = (e: MediaQueryListEvent) => {
@@ -164,31 +193,65 @@ export default function PublicStorePage({ onAdminClick }: Props) {
       promptRef.current = null;
     }
   };
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [orderForm, setOrderForm] = useState<OrderForm>({
-    customerName: "",
-    contactNumber: "",
-    cityName: "",
-  });
-  const [orderSuccess, setOrderSuccess] = useState(false);
-  const [formErrors, setFormErrors] = useState<Partial<OrderForm>>({});
+
+  // Cart functions
+  const addToCart = (product: Product) => {
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.product.id === product.id);
+      if (existing) {
+        return prev.map((item) =>
+          item.product.id === product.id
+            ? { ...item, quantity: item.quantity + 1 }
+            : item,
+        );
+      }
+      return [...prev, { product, quantity: 1 }];
+    });
+    toast.success(`${product.name} added to cart`, { duration: 2000 });
+  };
+
+  const removeFromCart = (productId: bigint) => {
+    setCartItems((prev) =>
+      prev.filter((item) => item.product.id !== productId),
+    );
+  };
+
+  const updateQuantity = (productId: bigint, qty: number) => {
+    if (qty < 1) {
+      removeFromCart(productId);
+      return;
+    }
+    setCartItems((prev) =>
+      prev.map((item) =>
+        item.product.id === productId ? { ...item, quantity: qty } : item,
+      ),
+    );
+  };
+
+  const clearCart = () => setCartItems([]);
+
+  const totalItemCount = cartItems.reduce(
+    (sum, item) => sum + item.quantity,
+    0,
+  );
+  const cartSubtotal = cartItems.reduce(
+    (sum, item) => sum + Number(item.product.price) * item.quantity,
+    0,
+  );
 
   const { data: products, isLoading } = useListProducts();
   const categoriesQuery = useListCategories();
-  const submitOrder = useSubmitOrder();
 
   const allProducts =
     products && products.length > 0 ? products : SAMPLE_PRODUCTS;
 
   const categories = categoriesQuery.data ?? [];
 
-  // Build a color map indexed by category name
   const categoryColorMap: Record<string, string> = {};
   categories.forEach((cat, index) => {
     categoryColorMap[cat.name] = getCategoryColor(index);
   });
 
-  // Derive active tab label for empty state text
   const activeTabLabel =
     activeTab === "all"
       ? "All"
@@ -212,31 +275,45 @@ export default function PublicStorePage({ onAdminClick }: Props) {
     return Object.keys(errors).length === 0;
   };
 
-  const handleOrderSubmit = async () => {
-    if (!selectedProduct || !validate()) return;
+  const handleCheckoutSubmit = async () => {
+    if (!validate() || cartItems.length === 0 || !actor) return;
+    setIsSubmitting(true);
     try {
-      await submitOrder.mutateAsync({
-        productId: selectedProduct.id,
-        productName: selectedProduct.name,
-        customerName: orderForm.customerName.trim(),
-        contactNumber: orderForm.contactNumber.trim(),
-        cityName: orderForm.cityName.trim(),
-      });
+      await Promise.all(
+        cartItems.map((item) => {
+          const productName =
+            item.quantity > 1
+              ? `${item.product.name} (x${item.quantity})`
+              : item.product.name;
+          return actor.submitOrder(
+            item.product.id,
+            productName,
+            orderForm.customerName.trim(),
+            orderForm.contactNumber.trim(),
+            orderForm.cityName.trim(),
+          );
+        }),
+      );
       setOrderSuccess(true);
       toast.success("Order placed! We'll be in touch shortly.");
     } catch (err) {
       console.error(err);
       toast.error("Failed to place order. Please try again.");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
-  const handleDialogClose = (open: boolean) => {
+  const handleCheckoutClose = (open: boolean) => {
     if (!open) {
-      setSelectedProduct(null);
       setOrderForm({ customerName: "", contactNumber: "", cityName: "" });
       setFormErrors({});
+      if (orderSuccess) {
+        clearCart();
+        setIsCartOpen(false);
+      }
       setOrderSuccess(false);
-      submitOrder.reset();
+      setIsCheckoutOpen(false);
     }
   };
 
@@ -282,6 +359,24 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                   <span className="sm:hidden">Install</span>
                 </Button>
               )}
+
+              {/* Cart Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setIsCartOpen(true)}
+                data-ocid="store.cart_button"
+                className="relative gap-2 font-body text-sm font-medium border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                <span className="hidden sm:inline">Cart</span>
+                {totalItemCount > 0 && (
+                  <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center bg-primary text-primary-foreground text-[10px] font-bold rounded-full px-1">
+                    {totalItemCount}
+                  </span>
+                )}
+              </Button>
+
               <Button
                 variant="outline"
                 size="sm"
@@ -322,7 +417,6 @@ export default function PublicStorePage({ onAdminClick }: Props) {
       {/* Category Buttons */}
       <div className="container max-w-7xl mx-auto px-4 sm:px-6 pb-6">
         <div className="grid grid-cols-3 gap-2 w-full sm:max-w-sm">
-          {/* All button always first */}
           <Button
             variant={activeTab === "all" ? "default" : "outline"}
             size="sm"
@@ -333,7 +427,6 @@ export default function PublicStorePage({ onAdminClick }: Props) {
             All
           </Button>
 
-          {/* Dynamic category buttons */}
           {categoriesQuery.isLoading
             ? [1, 2, 3].map((i) => (
                 <Skeleton key={i} className="h-10 w-full rounded-xl" />
@@ -409,6 +502,11 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                   ? getCategoryColor(catIndex)
                   : "bg-muted text-muted-foreground border-border";
 
+              const cartItem = cartItems.find(
+                (item) => item.product.id === product.id,
+              );
+              const inCart = !!cartItem;
+
               return (
                 <motion.article
                   key={product.id.toString()}
@@ -435,6 +533,13 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                         ₹{Number(product.price).toFixed(2)}
                       </span>
                     </div>
+                    {inCart && (
+                      <div className="absolute top-3 left-3">
+                        <Badge className="bg-primary text-primary-foreground font-body text-xs font-semibold">
+                          In Cart ({cartItem.quantity})
+                        </Badge>
+                      </div>
+                    )}
                   </div>
 
                   {/* Card Body */}
@@ -443,7 +548,6 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                       {product.name}
                     </h2>
 
-                    {/* Category Badge */}
                     {product.category && (
                       <span
                         className={`inline-block text-xs font-display font-semibold px-2 py-0.5 rounded-full border mb-2.5 ${badgeColor}`}
@@ -456,14 +560,56 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                       {product.description}
                     </p>
 
-                    <Button
-                      className="w-full gap-2 font-body font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 btn-glow transition-all rounded-xl h-10"
-                      onClick={() => setSelectedProduct(product)}
-                      data-ocid={`products.order_button.${index + 1}`}
-                    >
-                      <ShoppingBag className="w-4 h-4" />
-                      Order Now
-                    </Button>
+                    {inCart ? (
+                      <div className="flex items-center gap-2">
+                        {/* Quantity controls */}
+                        <div className="flex items-center gap-1 border border-border rounded-xl h-10 px-1">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                            onClick={() =>
+                              updateQuantity(product.id, cartItem.quantity - 1)
+                            }
+                            aria-label="Decrease quantity"
+                          >
+                            <Minus className="w-3.5 h-3.5" />
+                          </Button>
+                          <span className="font-body font-semibold text-sm text-foreground w-6 text-center">
+                            {cartItem.quantity}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 rounded-lg hover:bg-primary/10 hover:text-primary"
+                            onClick={() =>
+                              updateQuantity(product.id, cartItem.quantity + 1)
+                            }
+                            aria-label="Increase quantity"
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                        <Button
+                          variant="outline"
+                          className="flex-1 gap-2 font-body font-semibold text-sm border-primary/40 text-primary hover:bg-primary/5 transition-all rounded-xl h-10"
+                          onClick={() => setIsCartOpen(true)}
+                          data-ocid={`products.add_to_cart_button.${index + 1}`}
+                        >
+                          <ShoppingCart className="w-4 h-4" />
+                          View Cart
+                        </Button>
+                      </div>
+                    ) : (
+                      <Button
+                        className="w-full gap-2 font-body font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 btn-glow transition-all rounded-xl h-10"
+                        onClick={() => addToCart(product)}
+                        data-ocid={`products.add_to_cart_button.${index + 1}`}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                        Add to Cart
+                      </Button>
+                    )}
                   </div>
                 </motion.article>
               );
@@ -489,8 +635,171 @@ export default function PublicStorePage({ onAdminClick }: Props) {
         </div>
       </footer>
 
-      {/* Order Dialog */}
-      <Dialog open={!!selectedProduct} onOpenChange={handleDialogClose}>
+      {/* Cart Sheet */}
+      <Sheet open={isCartOpen} onOpenChange={setIsCartOpen}>
+        <SheetContent
+          side="right"
+          data-ocid="store.cart_sheet"
+          className="w-full sm:max-w-md flex flex-col p-0"
+        >
+          <SheetHeader className="px-5 pt-5 pb-4 border-b border-border">
+            <SheetTitle className="font-display font-bold text-xl text-foreground flex items-center gap-2">
+              <ShoppingCart className="w-5 h-5 text-primary" />
+              Your Cart
+              {totalItemCount > 0 && (
+                <Badge className="ml-1 bg-primary text-primary-foreground font-body text-xs">
+                  {totalItemCount} {totalItemCount === 1 ? "item" : "items"}
+                </Badge>
+              )}
+            </SheetTitle>
+          </SheetHeader>
+
+          {cartItems.length === 0 ? (
+            <div
+              data-ocid="cart.empty_state"
+              className="flex-1 flex flex-col items-center justify-center px-5 py-16 text-center gap-4"
+            >
+              <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                <ShoppingCart className="w-8 h-8 text-muted-foreground/50" />
+              </div>
+              <div>
+                <h3 className="font-display font-bold text-lg text-foreground mb-1">
+                  Your cart is empty
+                </h3>
+                <p className="font-body text-sm text-muted-foreground">
+                  Add products to get started.
+                </p>
+              </div>
+              <Button
+                variant="outline"
+                className="font-body font-semibold rounded-xl border-primary/40 text-primary hover:bg-primary/5"
+                onClick={() => setIsCartOpen(false)}
+              >
+                Browse Products
+              </Button>
+            </div>
+          ) : (
+            <>
+              <ScrollArea className="flex-1 px-5 py-4">
+                <div className="space-y-4">
+                  {cartItems.map((item, index) => (
+                    <div
+                      key={item.product.id.toString()}
+                      data-ocid={`cart.item.${index + 1}`}
+                      className="flex gap-3 items-start"
+                    >
+                      {/* Thumbnail */}
+                      <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0">
+                        {item.product.imageUrl ? (
+                          <img
+                            src={item.product.imageUrl}
+                            alt={item.product.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package className="w-6 h-6 text-muted-foreground/40" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Details */}
+                      <div className="flex-1 min-w-0">
+                        <h4 className="font-display font-bold text-sm text-foreground line-clamp-1 mb-1">
+                          {item.product.name}
+                        </h4>
+                        <p className="font-body font-semibold text-sm text-primary mb-2">
+                          ₹
+                          {(Number(item.product.price) * item.quantity).toFixed(
+                            2,
+                          )}
+                        </p>
+
+                        {/* Quantity controls */}
+                        <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-0.5 border border-border rounded-lg h-8 px-0.5">
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary"
+                              onClick={() =>
+                                updateQuantity(
+                                  item.product.id,
+                                  item.quantity - 1,
+                                )
+                              }
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus className="w-3 h-3" />
+                            </Button>
+                            <span className="font-body font-semibold text-xs text-foreground w-5 text-center">
+                              {item.quantity}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary"
+                              onClick={() =>
+                                updateQuantity(
+                                  item.product.id,
+                                  item.quantity + 1,
+                                )
+                              }
+                              aria-label="Increase quantity"
+                            >
+                              <Plus className="w-3 h-3" />
+                            </Button>
+                          </div>
+
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 rounded-md text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={() => removeFromCart(item.product.id)}
+                            data-ocid={`cart.item.remove_button.${index + 1}`}
+                            aria-label="Remove from cart"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
+
+              <SheetFooter className="px-5 pt-4 pb-5 border-t border-border gap-3">
+                {/* Subtotal */}
+                <div className="flex items-center justify-between w-full mb-1">
+                  <span className="font-body text-sm text-muted-foreground">
+                    Subtotal ({totalItemCount}{" "}
+                    {totalItemCount === 1 ? "item" : "items"})
+                  </span>
+                  <span className="font-display font-bold text-lg text-foreground">
+                    ₹{cartSubtotal.toFixed(2)}
+                  </span>
+                </div>
+                <Separator className="w-full" />
+                <Button
+                  className="w-full gap-2 font-body font-semibold bg-primary text-primary-foreground hover:bg-primary/90 btn-glow rounded-xl h-11 mt-1"
+                  onClick={() => {
+                    setIsCartOpen(false);
+                    setIsCheckoutOpen(true);
+                  }}
+                  data-ocid="cart.checkout_button"
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  Checkout ({totalItemCount}{" "}
+                  {totalItemCount === 1 ? "item" : "items"})
+                </Button>
+              </SheetFooter>
+            </>
+          )}
+        </SheetContent>
+      </Sheet>
+
+      {/* Checkout Dialog */}
+      <Dialog open={isCheckoutOpen} onOpenChange={handleCheckoutClose}>
         <DialogContent
           className="sm:max-w-md rounded-2xl bg-card"
           data-ocid="order.dialog"
@@ -520,7 +829,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                 </div>
                 <Button
                   className="bg-primary text-primary-foreground font-body font-semibold rounded-xl w-full"
-                  onClick={() => handleDialogClose(false)}
+                  onClick={() => handleCheckoutClose(false)}
                 >
                   Continue Shopping
                 </Button>
@@ -533,13 +842,50 @@ export default function PublicStorePage({ onAdminClick }: Props) {
               >
                 <DialogHeader className="pb-4">
                   <DialogTitle className="font-display font-bold text-xl text-foreground">
-                    Order: {selectedProduct?.name}
+                    Checkout
                   </DialogTitle>
                   <p className="font-body text-sm text-muted-foreground">
-                    Leave your details and we'll reach out to complete your
-                    purchase.
+                    {cartItems.length === 1
+                      ? `Ordering: ${cartItems[0].product.name}${cartItems[0].quantity > 1 ? ` (x${cartItems[0].quantity})` : ""}`
+                      : `Ordering ${cartItems.length} products — ₹${cartSubtotal.toFixed(2)} total`}
                   </p>
                 </DialogHeader>
+
+                {/* Order Summary */}
+                {cartItems.length > 1 && (
+                  <div className="bg-muted/40 rounded-xl p-3 mb-4 space-y-1.5">
+                    {cartItems.map((item) => (
+                      <div
+                        key={item.product.id.toString()}
+                        className="flex items-center justify-between gap-2"
+                      >
+                        <span className="font-body text-sm text-foreground truncate">
+                          {item.product.name}
+                          {item.quantity > 1 && (
+                            <span className="text-muted-foreground ml-1">
+                              ×{item.quantity}
+                            </span>
+                          )}
+                        </span>
+                        <span className="font-body text-sm font-semibold text-primary whitespace-nowrap">
+                          ₹
+                          {(Number(item.product.price) * item.quantity).toFixed(
+                            2,
+                          )}
+                        </span>
+                      </div>
+                    ))}
+                    <Separator className="my-1" />
+                    <div className="flex items-center justify-between">
+                      <span className="font-body text-sm font-semibold text-foreground">
+                        Total
+                      </span>
+                      <span className="font-display font-bold text-sm text-primary">
+                        ₹{cartSubtotal.toFixed(2)}
+                      </span>
+                    </div>
+                  </div>
+                )}
 
                 <div className="space-y-4 py-2">
                   <div className="space-y-1.5">
@@ -572,7 +918,10 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                       />
                     </div>
                     {formErrors.customerName && (
-                      <p className="text-destructive text-xs font-body">
+                      <p
+                        className="text-destructive text-xs font-body"
+                        data-ocid="order.name_error"
+                      >
                         {formErrors.customerName}
                       </p>
                     )}
@@ -590,7 +939,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                       <Input
                         id="contactNumber"
                         type="tel"
-                        placeholder="+1 (555) 000-0000"
+                        placeholder="+91 98765 43210"
                         value={orderForm.contactNumber}
                         onChange={(e) => {
                           setOrderForm((prev) => ({
@@ -604,7 +953,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                             }));
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleOrderSubmit();
+                          if (e.key === "Enter") handleCheckoutSubmit();
                         }}
                         className="pl-9 font-body rounded-xl h-11"
                         data-ocid="order.contact_input"
@@ -612,7 +961,10 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                       />
                     </div>
                     {formErrors.contactNumber && (
-                      <p className="text-destructive text-xs font-body">
+                      <p
+                        className="text-destructive text-xs font-body"
+                        data-ocid="order.contact_error"
+                      >
                         {formErrors.contactNumber}
                       </p>
                     )}
@@ -641,7 +993,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                           }));
                         }}
                         onKeyDown={(e) => {
-                          if (e.key === "Enter") handleOrderSubmit();
+                          if (e.key === "Enter") handleCheckoutSubmit();
                         }}
                         className="pl-9 font-body rounded-xl h-11"
                         data-ocid="order.city_input"
@@ -654,18 +1006,19 @@ export default function PublicStorePage({ onAdminClick }: Props) {
                 <DialogFooter className="pt-4 gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => handleDialogClose(false)}
+                    onClick={() => handleCheckoutClose(false)}
                     className="font-body font-semibold rounded-xl flex-1 border-border"
+                    data-ocid="order.cancel_button"
                   >
                     Cancel
                   </Button>
                   <Button
-                    onClick={handleOrderSubmit}
-                    disabled={submitOrder.isPending}
-                    data-ocid="order.submit_button"
+                    onClick={handleCheckoutSubmit}
+                    disabled={isSubmitting || cartItems.length === 0}
+                    data-ocid="cart.order_submit_button"
                     className="bg-primary text-primary-foreground font-body font-semibold rounded-xl flex-1 btn-glow"
                   >
-                    {submitOrder.isPending ? (
+                    {isSubmitting ? (
                       <>
                         <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                         Placing...

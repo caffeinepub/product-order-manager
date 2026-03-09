@@ -38,8 +38,11 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Product } from "../backend.d";
-import { useActor } from "../hooks/useActor";
-import { useListCategories, useListProducts } from "../hooks/useQueries";
+import {
+  useListCategories,
+  useListProducts,
+  useSubmitOrder,
+} from "../hooks/useQueries";
 
 type CategoryKey = string;
 
@@ -147,7 +150,7 @@ export default function PublicStorePage({ onAdminClick }: Props) {
   const [formErrors, setFormErrors] = useState<Partial<OrderForm>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { actor } = useActor();
+  const submitOrderMutation = useSubmitOrder();
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -276,7 +279,9 @@ export default function PublicStorePage({ onAdminClick }: Props) {
   };
 
   const handleCheckoutSubmit = async () => {
-    if (!validate() || cartItems.length === 0 || !actor) return;
+    if (!validate() || cartItems.length === 0) return;
+    if (submitOrderMutation.isPending) return;
+
     setIsSubmitting(true);
     try {
       await Promise.all(
@@ -285,13 +290,13 @@ export default function PublicStorePage({ onAdminClick }: Props) {
             item.quantity > 1
               ? `${item.product.name} (x${item.quantity})`
               : item.product.name;
-          return actor.submitOrder(
-            item.product.id,
+          return submitOrderMutation.mutateAsync({
+            productId: item.product.id,
             productName,
-            orderForm.customerName.trim(),
-            orderForm.contactNumber.trim(),
-            orderForm.cityName.trim(),
-          );
+            customerName: orderForm.customerName.trim(),
+            contactNumber: orderForm.contactNumber.trim(),
+            cityName: orderForm.cityName.trim(),
+          });
         }),
       );
       setOrderSuccess(true);

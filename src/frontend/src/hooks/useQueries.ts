@@ -9,38 +9,38 @@ import type {
 import { useActor } from "./useActor";
 
 export function useGetProducts() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   return useQuery({
     queryKey: ["products"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getProducts();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor,
   });
 }
 
 export function useGetCategories() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   return useQuery({
     queryKey: ["categories"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getCategories();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor,
   });
 }
 
 export function useGetOrders() {
-  const { actor, isFetching } = useActor();
+  const { actor } = useActor();
   return useQuery({
     queryKey: ["orders"],
     queryFn: async () => {
       if (!actor) return [];
       return actor.getOrders();
     },
-    enabled: !!actor && !isFetching,
+    enabled: !!actor,
   });
 }
 
@@ -52,7 +52,7 @@ export function usePlaceOrder() {
       if (!actor) throw new Error("Backend not connected. Please try again.");
       return actor.placeOrder(input);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["orders"] }),
   });
 }
 
@@ -64,7 +64,7 @@ export function useAddProduct() {
       if (!actor) throw new Error("Backend not connected.");
       return actor.addProduct(input);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["products"] }),
   });
 }
 
@@ -76,7 +76,7 @@ export function useUpdateProduct() {
       if (!actor) throw new Error("Backend not connected.");
       return actor.updateProduct(input);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["products"] }),
   });
 }
 
@@ -88,7 +88,7 @@ export function useDeleteProduct() {
       if (!actor) throw new Error("Backend not connected.");
       return actor.deleteProduct(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["products"] }),
   });
 }
 
@@ -100,7 +100,7 @@ export function useAddCategory() {
       if (!actor) throw new Error("Backend not connected.");
       return actor.addCategory(input);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["categories"] }),
   });
 }
 
@@ -112,7 +112,7 @@ export function useDeleteCategory() {
       if (!actor) throw new Error("Backend not connected.");
       return actor.deleteCategory(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["categories"] }),
   });
 }
 
@@ -124,7 +124,7 @@ export function useDeleteOrder() {
       if (!actor) throw new Error("Backend not connected.");
       return actor.deleteOrder(id);
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+    onSuccess: () => qc.refetchQueries({ queryKey: ["orders"] }),
   });
 }
 

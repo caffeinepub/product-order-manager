@@ -1,30 +1,25 @@
 import Map "mo:core/Map";
 import Nat "mo:core/Nat";
-import Float "mo:core/Float";
+import Int "mo:core/Int";
 import Iter "mo:core/Iter";
 import Runtime "mo:core/Runtime";
 import Time "mo:core/Time";
+import Array "mo:core/Array";
+import Storage "blob-storage/Storage";
+import MixinStorage "blob-storage/Mixin";
+import Migration "migration";
 
-
-
+(with migration = Migration.run)
 actor {
+  include MixinStorage();
+
   type Product = {
     id : Nat;
     name : Text;
     description : Text;
-    price : Float;
-    imageUrl : Text;
+    price : Nat;
     category : Text;
-  };
-
-  type Order = {
-    id : Nat;
-    productId : Nat;
-    productName : Text;
-    customerName : Text;
-    contactNumber : Text;
-    cityName : Text;
-    timestamp : Time.Time;
+    image : Storage.ExternalBlob;
   };
 
   type Category = {
@@ -32,111 +27,163 @@ actor {
     name : Text;
   };
 
-  var nextProductId = 1;
-  var nextOrderId = 1;
-  var nextCategoryId = 1;
+  type OrderItem = {
+    productId : Nat;
+    quantity : Nat;
+    productName : Text;
+    price : Nat;
+  };
+
+  type Order = {
+    id : Nat;
+    customerName : Text;
+    contactNumber : Text;
+    city : ?Text;
+    items : [OrderItem];
+    totalAmount : Nat;
+    timestamp : Time.Time;
+  };
+
+  type CreateProductInput = {
+    name : Text;
+    description : Text;
+    price : Nat;
+    category : Text;
+    image : Storage.ExternalBlob;
+  };
+
+  type UpdateProductInput = {
+    id : Nat;
+    name : Text;
+    description : Text;
+    price : Nat;
+    category : Text;
+    image : Storage.ExternalBlob;
+  };
+
+  type CreateCategoryInput = {
+    name : Text;
+  };
+
+  type OrderItemInput = {
+    productId : Nat;
+    quantity : Nat;
+    productName : Text;
+    price : Nat;
+  };
+
+  type CreateOrderInput = {
+    customerName : Text;
+    contactNumber : Text;
+    city : ?Text;
+    items : [OrderItemInput];
+    totalAmount : Nat;
+  };
 
   let products = Map.empty<Nat, Product>();
-  let orders = Map.empty<Nat, Order>();
   let categories = Map.empty<Nat, Category>();
+  let orders = Map.empty<Nat, Order>();
 
-  var adminPin = "0852";
+  var nextProductId = 1;
+  var nextCategoryId = 1;
+  var nextOrderId = 1;
 
-  func verifyAdmin(pin : Text) : () {
-    if (pin != adminPin) { Runtime.trap("Invalid PIN!") };
-  };
-
-  public shared ({ caller }) func addProduct(pin : Text, name : Text, description : Text, price : Float, imageUrl : Text, category : Text) : async () {
-    verifyAdmin(pin);
+  public shared ({ caller }) func addProduct(input : CreateProductInput) : async Nat {
     let product : Product = {
       id = nextProductId;
-      name;
-      description;
-      price;
-      imageUrl;
-      category;
+      name = input.name;
+      description = input.description;
+      price = input.price;
+      category = input.category;
+      image = input.image;
     };
+    products.add(nextProductId, product);
     nextProductId += 1;
-    products.add(product.id, product);
+    product.id;
   };
 
-  public shared ({ caller }) func editProduct(pin : Text, id : Nat, name : Text, description : Text, price : Float, imageUrl : Text, category : Text) : async () {
-    verifyAdmin(pin);
-    let product : Product = {
-      id;
-      name;
-      description;
-      price;
-      imageUrl;
-      category;
+  public shared ({ caller }) func updateProduct(input : UpdateProductInput) : async () {
+    switch (products.get(input.id)) {
+      case (null) { Runtime.trap("Product not found") };
+      case (?_) {
+        let updatedProduct : Product = {
+          id = input.id;
+          name = input.name;
+          description = input.description;
+          price = input.price;
+          category = input.category;
+          image = input.image;
+        };
+        products.add(input.id, updatedProduct);
+      };
     };
-    products.add(id, product);
   };
 
-  public shared ({ caller }) func deleteProduct(pin : Text, id : Nat) : async () {
-    verifyAdmin(pin);
-    if (products.isEmpty()) {
-      Runtime.trap("No products available. ");
+  public shared ({ caller }) func deleteProduct(productId : Nat) : async () {
+    switch (products.get(productId)) {
+      case (null) { Runtime.trap("Product not found") };
+      case (?_) {
+        products.remove(productId);
+      };
     };
-    products.remove(id);
   };
 
-  public query ({ caller }) func listProducts() : async [Product] {
+  public query ({ caller }) func getProducts() : async [Product] {
     products.values().toArray();
   };
 
-  public shared ({ caller }) func submitOrder(
-    productId : Nat,
-    productName : Text,
-    customerName : Text,
-    contactNumber : Text,
-    cityName : Text,
-  ) : async () {
-    if (products.isEmpty()) {
-      Runtime.trap("No products available. ");
-    };
-    let order : Order = {
-      id = nextOrderId;
-      productId;
-      productName;
-      customerName;
-      contactNumber;
-      cityName;
-      timestamp = Time.now();
-    };
-    nextOrderId += 1;
-    orders.add(order.id, order);
+  public query ({ caller }) func getProductById(productId : Nat) : async ?Product {
+    products.get(productId);
   };
 
-  public query ({ caller }) func listOrders(pin : Text) : async [Order] {
-    verifyAdmin(pin);
-    orders.values().toArray();
-  };
-
-  public shared ({ caller }) func verifyAdminPin(pin : Text) : async Bool {
-    pin == adminPin;
-  };
-
-  public shared ({ caller }) func addCategory(pin : Text, name : Text) : async Nat {
-    verifyAdmin(pin);
+  public shared ({ caller }) func addCategory(input : CreateCategoryInput) : async Nat {
     let category : Category = {
       id = nextCategoryId;
-      name;
+      name = input.name;
     };
     categories.add(nextCategoryId, category);
     nextCategoryId += 1;
     category.id;
   };
 
-  public shared ({ caller }) func deleteCategory(pin : Text, id : Nat) : async () {
-    verifyAdmin(pin);
-    if (categories.isEmpty()) {
-      Runtime.trap("No categories available. ");
+  public shared ({ caller }) func deleteCategory(categoryId : Nat) : async () {
+    switch (categories.get(categoryId)) {
+      case (null) { Runtime.trap("Category not found") };
+      case (?_) {
+        categories.remove(categoryId);
+      };
     };
-    categories.remove(id);
   };
 
-  public query ({ caller }) func listCategories() : async [Category] {
+  public query ({ caller }) func getCategories() : async [Category] {
     categories.values().toArray();
+  };
+
+  public shared ({ caller }) func placeOrder(input : CreateOrderInput) : async Nat {
+    let order : Order = {
+      id = nextOrderId;
+      customerName = input.customerName;
+      contactNumber = input.contactNumber;
+      city = input.city;
+      items = input.items;
+      totalAmount = input.totalAmount;
+      timestamp = Time.now();
+    };
+    orders.add(nextOrderId, order);
+    nextOrderId += 1;
+    order.id;
+  };
+
+  public query ({ caller }) func getOrders() : async [Order] {
+    orders.values().toArray();
+  };
+
+  public shared ({ caller }) func deleteOrder(orderId : Nat) : async () {
+    switch (orders.get(orderId)) {
+      case (null) { Runtime.trap("Order not found") };
+      case (?_) {
+        orders.remove(orderId);
+      };
+    };
   };
 };

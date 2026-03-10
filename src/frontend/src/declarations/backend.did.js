@@ -8,105 +8,221 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
+export const _CaffeineStorageCreateCertificateResult = IDL.Record({
+  'method' : IDL.Text,
+  'blob_hash' : IDL.Text,
+});
+export const _CaffeineStorageRefillInformation = IDL.Record({
+  'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const _CaffeineStorageRefillResult = IDL.Record({
+  'success' : IDL.Opt(IDL.Bool),
+  'topped_up_amount' : IDL.Opt(IDL.Nat),
+});
+export const CreateCategoryInput = IDL.Record({ 'name' : IDL.Text });
+export const ExternalBlob = IDL.Vec(IDL.Nat8);
+export const CreateProductInput = IDL.Record({
+  'name' : IDL.Text,
+  'description' : IDL.Text,
+  'category' : IDL.Text,
+  'image' : ExternalBlob,
+  'price' : IDL.Nat,
+});
 export const Category = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
 export const Time = IDL.Int;
+export const OrderItem = IDL.Record({
+  'productId' : IDL.Nat,
+  'productName' : IDL.Text,
+  'quantity' : IDL.Nat,
+  'price' : IDL.Nat,
+});
 export const Order = IDL.Record({
   'id' : IDL.Nat,
   'customerName' : IDL.Text,
-  'productId' : IDL.Nat,
-  'productName' : IDL.Text,
-  'cityName' : IDL.Text,
+  'city' : IDL.Opt(IDL.Text),
+  'totalAmount' : IDL.Nat,
   'timestamp' : Time,
   'contactNumber' : IDL.Text,
+  'items' : IDL.Vec(OrderItem),
 });
 export const Product = IDL.Record({
   'id' : IDL.Nat,
   'name' : IDL.Text,
   'description' : IDL.Text,
-  'imageUrl' : IDL.Text,
   'category' : IDL.Text,
-  'price' : IDL.Float64,
+  'image' : ExternalBlob,
+  'price' : IDL.Nat,
+});
+export const OrderItemInput = IDL.Record({
+  'productId' : IDL.Nat,
+  'productName' : IDL.Text,
+  'quantity' : IDL.Nat,
+  'price' : IDL.Nat,
+});
+export const CreateOrderInput = IDL.Record({
+  'customerName' : IDL.Text,
+  'city' : IDL.Opt(IDL.Text),
+  'totalAmount' : IDL.Nat,
+  'contactNumber' : IDL.Text,
+  'items' : IDL.Vec(OrderItemInput),
+});
+export const UpdateProductInput = IDL.Record({
+  'id' : IDL.Nat,
+  'name' : IDL.Text,
+  'description' : IDL.Text,
+  'category' : IDL.Text,
+  'image' : ExternalBlob,
+  'price' : IDL.Nat,
 });
 
 export const idlService = IDL.Service({
-  'addCategory' : IDL.Func([IDL.Text, IDL.Text], [IDL.Nat], []),
-  'addProduct' : IDL.Func(
-      [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+  '_caffeineStorageBlobIsLive' : IDL.Func(
+      [IDL.Vec(IDL.Nat8)],
+      [IDL.Bool],
+      ['query'],
+    ),
+  '_caffeineStorageBlobsToDelete' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
+      ['query'],
+    ),
+  '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+      [IDL.Vec(IDL.Vec(IDL.Nat8))],
       [],
       [],
     ),
-  'deleteCategory' : IDL.Func([IDL.Text, IDL.Nat], [], []),
-  'deleteProduct' : IDL.Func([IDL.Text, IDL.Nat], [], []),
-  'editProduct' : IDL.Func(
-      [IDL.Text, IDL.Nat, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
-      [],
+  '_caffeineStorageCreateCertificate' : IDL.Func(
+      [IDL.Text],
+      [_CaffeineStorageCreateCertificateResult],
       [],
     ),
-  'listCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
-  'listOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], ['query']),
-  'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-  'submitOrder' : IDL.Func(
-      [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
-      [],
+  '_caffeineStorageRefillCashier' : IDL.Func(
+      [IDL.Opt(_CaffeineStorageRefillInformation)],
+      [_CaffeineStorageRefillResult],
       [],
     ),
-  'verifyAdminPin' : IDL.Func([IDL.Text], [IDL.Bool], []),
+  '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+  'addCategory' : IDL.Func([CreateCategoryInput], [IDL.Nat], []),
+  'addProduct' : IDL.Func([CreateProductInput], [IDL.Nat], []),
+  'deleteCategory' : IDL.Func([IDL.Nat], [], []),
+  'deleteOrder' : IDL.Func([IDL.Nat], [], []),
+  'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+  'getCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
+  'getOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+  'getProductById' : IDL.Func([IDL.Nat], [IDL.Opt(Product)], ['query']),
+  'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+  'placeOrder' : IDL.Func([CreateOrderInput], [IDL.Nat], []),
+  'updateProduct' : IDL.Func([UpdateProductInput], [], []),
 });
 
 export const idlInitArgs = [];
 
 export const idlFactory = ({ IDL }) => {
+  const _CaffeineStorageCreateCertificateResult = IDL.Record({
+    'method' : IDL.Text,
+    'blob_hash' : IDL.Text,
+  });
+  const _CaffeineStorageRefillInformation = IDL.Record({
+    'proposed_top_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const _CaffeineStorageRefillResult = IDL.Record({
+    'success' : IDL.Opt(IDL.Bool),
+    'topped_up_amount' : IDL.Opt(IDL.Nat),
+  });
+  const CreateCategoryInput = IDL.Record({ 'name' : IDL.Text });
+  const ExternalBlob = IDL.Vec(IDL.Nat8);
+  const CreateProductInput = IDL.Record({
+    'name' : IDL.Text,
+    'description' : IDL.Text,
+    'category' : IDL.Text,
+    'image' : ExternalBlob,
+    'price' : IDL.Nat,
+  });
   const Category = IDL.Record({ 'id' : IDL.Nat, 'name' : IDL.Text });
   const Time = IDL.Int;
+  const OrderItem = IDL.Record({
+    'productId' : IDL.Nat,
+    'productName' : IDL.Text,
+    'quantity' : IDL.Nat,
+    'price' : IDL.Nat,
+  });
   const Order = IDL.Record({
     'id' : IDL.Nat,
     'customerName' : IDL.Text,
-    'productId' : IDL.Nat,
-    'productName' : IDL.Text,
-    'cityName' : IDL.Text,
+    'city' : IDL.Opt(IDL.Text),
+    'totalAmount' : IDL.Nat,
     'timestamp' : Time,
     'contactNumber' : IDL.Text,
+    'items' : IDL.Vec(OrderItem),
   });
   const Product = IDL.Record({
     'id' : IDL.Nat,
     'name' : IDL.Text,
     'description' : IDL.Text,
-    'imageUrl' : IDL.Text,
     'category' : IDL.Text,
-    'price' : IDL.Float64,
+    'image' : ExternalBlob,
+    'price' : IDL.Nat,
+  });
+  const OrderItemInput = IDL.Record({
+    'productId' : IDL.Nat,
+    'productName' : IDL.Text,
+    'quantity' : IDL.Nat,
+    'price' : IDL.Nat,
+  });
+  const CreateOrderInput = IDL.Record({
+    'customerName' : IDL.Text,
+    'city' : IDL.Opt(IDL.Text),
+    'totalAmount' : IDL.Nat,
+    'contactNumber' : IDL.Text,
+    'items' : IDL.Vec(OrderItemInput),
+  });
+  const UpdateProductInput = IDL.Record({
+    'id' : IDL.Nat,
+    'name' : IDL.Text,
+    'description' : IDL.Text,
+    'category' : IDL.Text,
+    'image' : ExternalBlob,
+    'price' : IDL.Nat,
   });
   
   return IDL.Service({
-    'addCategory' : IDL.Func([IDL.Text, IDL.Text], [IDL.Nat], []),
-    'addProduct' : IDL.Func(
-        [IDL.Text, IDL.Text, IDL.Text, IDL.Float64, IDL.Text, IDL.Text],
+    '_caffeineStorageBlobIsLive' : IDL.Func(
+        [IDL.Vec(IDL.Nat8)],
+        [IDL.Bool],
+        ['query'],
+      ),
+    '_caffeineStorageBlobsToDelete' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
+        ['query'],
+      ),
+    '_caffeineStorageConfirmBlobDeletion' : IDL.Func(
+        [IDL.Vec(IDL.Vec(IDL.Nat8))],
         [],
         [],
       ),
-    'deleteCategory' : IDL.Func([IDL.Text, IDL.Nat], [], []),
-    'deleteProduct' : IDL.Func([IDL.Text, IDL.Nat], [], []),
-    'editProduct' : IDL.Func(
-        [
-          IDL.Text,
-          IDL.Nat,
-          IDL.Text,
-          IDL.Text,
-          IDL.Float64,
-          IDL.Text,
-          IDL.Text,
-        ],
-        [],
+    '_caffeineStorageCreateCertificate' : IDL.Func(
+        [IDL.Text],
+        [_CaffeineStorageCreateCertificateResult],
         [],
       ),
-    'listCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
-    'listOrders' : IDL.Func([IDL.Text], [IDL.Vec(Order)], ['query']),
-    'listProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
-    'submitOrder' : IDL.Func(
-        [IDL.Nat, IDL.Text, IDL.Text, IDL.Text, IDL.Text],
-        [],
+    '_caffeineStorageRefillCashier' : IDL.Func(
+        [IDL.Opt(_CaffeineStorageRefillInformation)],
+        [_CaffeineStorageRefillResult],
         [],
       ),
-    'verifyAdminPin' : IDL.Func([IDL.Text], [IDL.Bool], []),
+    '_caffeineStorageUpdateGatewayPrincipals' : IDL.Func([], [], []),
+    'addCategory' : IDL.Func([CreateCategoryInput], [IDL.Nat], []),
+    'addProduct' : IDL.Func([CreateProductInput], [IDL.Nat], []),
+    'deleteCategory' : IDL.Func([IDL.Nat], [], []),
+    'deleteOrder' : IDL.Func([IDL.Nat], [], []),
+    'deleteProduct' : IDL.Func([IDL.Nat], [], []),
+    'getCategories' : IDL.Func([], [IDL.Vec(Category)], ['query']),
+    'getOrders' : IDL.Func([], [IDL.Vec(Order)], ['query']),
+    'getProductById' : IDL.Func([IDL.Nat], [IDL.Opt(Product)], ['query']),
+    'getProducts' : IDL.Func([], [IDL.Vec(Product)], ['query']),
+    'placeOrder' : IDL.Func([CreateOrderInput], [IDL.Nat], []),
+    'updateProduct' : IDL.Func([UpdateProductInput], [], []),
   });
 };
 

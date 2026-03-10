@@ -11,44 +11,98 @@ import type { IDL } from '@icp-sdk/core/candid';
 import type { Principal } from '@icp-sdk/core/principal';
 
 export interface Category { 'id' : bigint, 'name' : string }
+export interface CreateCategoryInput { 'name' : string }
+export interface CreateOrderInput {
+  'customerName' : string,
+  'city' : [] | [string],
+  'totalAmount' : bigint,
+  'contactNumber' : string,
+  'items' : Array<OrderItemInput>,
+}
+export interface CreateProductInput {
+  'name' : string,
+  'description' : string,
+  'category' : string,
+  'image' : ExternalBlob,
+  'price' : bigint,
+}
+export type ExternalBlob = Uint8Array;
 export interface Order {
   'id' : bigint,
   'customerName' : string,
-  'productId' : bigint,
-  'productName' : string,
-  'cityName' : string,
+  'city' : [] | [string],
+  'totalAmount' : bigint,
   'timestamp' : Time,
   'contactNumber' : string,
+  'items' : Array<OrderItem>,
+}
+export interface OrderItem {
+  'productId' : bigint,
+  'productName' : string,
+  'quantity' : bigint,
+  'price' : bigint,
+}
+export interface OrderItemInput {
+  'productId' : bigint,
+  'productName' : string,
+  'quantity' : bigint,
+  'price' : bigint,
 }
 export interface Product {
   'id' : bigint,
   'name' : string,
   'description' : string,
-  'imageUrl' : string,
   'category' : string,
-  'price' : number,
+  'image' : ExternalBlob,
+  'price' : bigint,
 }
 export type Time = bigint;
+export interface UpdateProductInput {
+  'id' : bigint,
+  'name' : string,
+  'description' : string,
+  'category' : string,
+  'image' : ExternalBlob,
+  'price' : bigint,
+}
+export interface _CaffeineStorageCreateCertificateResult {
+  'method' : string,
+  'blob_hash' : string,
+}
+export interface _CaffeineStorageRefillInformation {
+  'proposed_top_up_amount' : [] | [bigint],
+}
+export interface _CaffeineStorageRefillResult {
+  'success' : [] | [boolean],
+  'topped_up_amount' : [] | [bigint],
+}
 export interface _SERVICE {
-  'addCategory' : ActorMethod<[string, string], bigint>,
-  'addProduct' : ActorMethod<
-    [string, string, string, number, string, string],
+  '_caffeineStorageBlobIsLive' : ActorMethod<[Uint8Array], boolean>,
+  '_caffeineStorageBlobsToDelete' : ActorMethod<[], Array<Uint8Array>>,
+  '_caffeineStorageConfirmBlobDeletion' : ActorMethod<
+    [Array<Uint8Array>],
     undefined
   >,
-  'deleteCategory' : ActorMethod<[string, bigint], undefined>,
-  'deleteProduct' : ActorMethod<[string, bigint], undefined>,
-  'editProduct' : ActorMethod<
-    [string, bigint, string, string, number, string, string],
-    undefined
+  '_caffeineStorageCreateCertificate' : ActorMethod<
+    [string],
+    _CaffeineStorageCreateCertificateResult
   >,
-  'listCategories' : ActorMethod<[], Array<Category>>,
-  'listOrders' : ActorMethod<[string], Array<Order>>,
-  'listProducts' : ActorMethod<[], Array<Product>>,
-  'submitOrder' : ActorMethod<
-    [bigint, string, string, string, string],
-    undefined
+  '_caffeineStorageRefillCashier' : ActorMethod<
+    [[] | [_CaffeineStorageRefillInformation]],
+    _CaffeineStorageRefillResult
   >,
-  'verifyAdminPin' : ActorMethod<[string], boolean>,
+  '_caffeineStorageUpdateGatewayPrincipals' : ActorMethod<[], undefined>,
+  'addCategory' : ActorMethod<[CreateCategoryInput], bigint>,
+  'addProduct' : ActorMethod<[CreateProductInput], bigint>,
+  'deleteCategory' : ActorMethod<[bigint], undefined>,
+  'deleteOrder' : ActorMethod<[bigint], undefined>,
+  'deleteProduct' : ActorMethod<[bigint], undefined>,
+  'getCategories' : ActorMethod<[], Array<Category>>,
+  'getOrders' : ActorMethod<[], Array<Order>>,
+  'getProductById' : ActorMethod<[bigint], [] | [Product]>,
+  'getProducts' : ActorMethod<[], Array<Product>>,
+  'placeOrder' : ActorMethod<[CreateOrderInput], bigint>,
+  'updateProduct' : ActorMethod<[UpdateProductInput], undefined>,
 }
 export declare const idlService: IDL.ServiceClass;
 export declare const idlInitArgs: IDL.Type[];

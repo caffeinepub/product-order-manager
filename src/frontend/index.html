@@ -1,28 +1,22 @@
+<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Good Food Products</title>
-
-    <!-- PWA -->
+    <title>Tasty Home — Good Food Products</title>
+    <meta name="description" content="Tasty Home — Homemade pickles, groceries, dry fruits and more. Order online with doorstep delivery." />
+    <meta name="theme-color" content="#8b4513" />
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#c2714f" />
-    <meta name="mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Good Food" />
-    <link rel="apple-touch-icon" href="/assets/generated/pwa-icon.dim_512x512.png" />
-    <meta name="description" content="Browse and order fresh food products online" />
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+          navigator.serviceWorker.register('/sw.js');
+        });
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
-        });
-      }
-    </script>
   </body>
 </html>

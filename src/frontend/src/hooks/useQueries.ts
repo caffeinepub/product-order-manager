@@ -1,193 +1,131 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { Category, Order, Product } from "../backend.d";
+import { ExternalBlob } from "../backend";
+import type {
+  CreateCategoryInput,
+  CreateOrderInput,
+  CreateProductInput,
+  UpdateProductInput,
+} from "../backend";
 import { useActor } from "./useActor";
 
-const ADMIN_PIN = "0852";
-
-export function useListProducts() {
+export function useGetProducts() {
   const { actor, isFetching } = useActor();
-  return useQuery<Product[]>({
+  return useQuery({
     queryKey: ["products"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.listProducts();
+      return actor.getProducts();
     },
     enabled: !!actor && !isFetching,
   });
 }
 
-export function useListOrders() {
+export function useGetCategories() {
   const { actor, isFetching } = useActor();
-  return useQuery<Order[]>({
-    queryKey: ["admin-orders"],
+  return useQuery({
+    queryKey: ["categories"],
     queryFn: async () => {
       if (!actor) return [];
-      return actor.listOrders(ADMIN_PIN);
+      return actor.getCategories();
     },
     enabled: !!actor && !isFetching,
   });
 }
 
-export function useVerifyAdminPin() {
-  const { actor } = useActor();
-  return useMutation({
-    mutationFn: async (pin: string) => {
-      if (!actor) throw new Error("No actor");
-      return actor.verifyAdminPin(pin);
+export function useGetOrders() {
+  const { actor, isFetching } = useActor();
+  return useQuery({
+    queryKey: ["orders"],
+    queryFn: async () => {
+      if (!actor) return [];
+      return actor.getOrders();
     },
+    enabled: !!actor && !isFetching,
   });
 }
 
-export function useSubmitOrder() {
+export function usePlaceOrder() {
   const { actor } = useActor();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      productId,
-      productName,
-      customerName,
-      contactNumber,
-      cityName,
-    }: {
-      productId: bigint;
-      productName: string;
-      customerName: string;
-      contactNumber: string;
-      cityName?: string;
-    }) => {
-      if (!actor) throw new Error("No actor");
-      return actor.submitOrder(
-        productId,
-        productName,
-        customerName,
-        contactNumber,
-        cityName ?? "",
-      );
+    mutationFn: async (input: CreateOrderInput) => {
+      if (!actor) throw new Error("Backend not connected. Please try again.");
+      return actor.placeOrder(input);
     },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
   });
 }
 
 export function useAddProduct() {
   const { actor } = useActor();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      name,
-      description,
-      price,
-      imageUrl,
-      category,
-    }: {
-      name: string;
-      description: string;
-      price: number;
-      imageUrl: string;
-      category: string;
-    }) => {
-      if (!actor) throw new Error("No actor");
-      return actor.addProduct(
-        ADMIN_PIN,
-        name,
-        description,
-        price,
-        imageUrl,
-        category,
-      );
+    mutationFn: async (input: CreateProductInput) => {
+      if (!actor) throw new Error("Backend not connected.");
+      return actor.addProduct(input);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
 }
 
-export function useEditProduct() {
+export function useUpdateProduct() {
   const { actor } = useActor();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({
-      id,
-      name,
-      description,
-      price,
-      imageUrl,
-      category,
-    }: {
-      id: bigint;
-      name: string;
-      description: string;
-      price: number;
-      imageUrl: string;
-      category: string;
-    }) => {
-      if (!actor) throw new Error("No actor");
-      return actor.editProduct(
-        ADMIN_PIN,
-        id,
-        name,
-        description,
-        price,
-        imageUrl,
-        category,
-      );
+    mutationFn: async (input: UpdateProductInput) => {
+      if (!actor) throw new Error("Backend not connected.");
+      return actor.updateProduct(input);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
 }
 
 export function useDeleteProduct() {
   const { actor } = useActor();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("No actor");
-      return actor.deleteProduct(ADMIN_PIN, id);
+      if (!actor) throw new Error("Backend not connected.");
+      return actor.deleteProduct(id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["products"] });
-      queryClient.invalidateQueries({ queryKey: ["admin-products"] });
-    },
-  });
-}
-
-export function useListCategories() {
-  const { actor, isFetching } = useActor();
-  return useQuery<Category[]>({
-    queryKey: ["categories"],
-    queryFn: async () => {
-      if (!actor) return [];
-      return actor.listCategories();
-    },
-    enabled: !!actor && !isFetching,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["products"] }),
   });
 }
 
 export function useAddCategory() {
   const { actor } = useActor();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (name: string) => {
-      if (!actor) throw new Error("No actor");
-      return actor.addCategory(ADMIN_PIN, name);
+    mutationFn: async (input: CreateCategoryInput) => {
+      if (!actor) throw new Error("Backend not connected.");
+      return actor.addCategory(input);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
 
 export function useDeleteCategory() {
   const { actor } = useActor();
-  const queryClient = useQueryClient();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: bigint) => {
-      if (!actor) throw new Error("No actor");
-      return actor.deleteCategory(ADMIN_PIN, id);
+      if (!actor) throw new Error("Backend not connected.");
+      return actor.deleteCategory(id);
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["categories"] });
-    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["categories"] }),
   });
 }
+
+export function useDeleteOrder() {
+  const { actor } = useActor();
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: bigint) => {
+      if (!actor) throw new Error("Backend not connected.");
+      return actor.deleteOrder(id);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["orders"] }),
+  });
+}
+
+export { ExternalBlob };

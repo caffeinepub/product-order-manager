@@ -1,24 +1,14 @@
 {
-  "name": "Good Food Products",
-  "short_name": "Good Food",
-  "description": "Browse and order fresh food products online",
+  "name": "Tasty Home",
+  "short_name": "Tasty Home",
+  "description": "Homemade food products — pickles, groceries, dry fruits and more",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#c2714f",
-  "theme_color": "#c2714f",
+  "background_color": "#f7f0e8",
+  "theme_color": "#8b4513",
   "orientation": "portrait",
   "icons": [
-    {
-      "src": "/assets/generated/pwa-icon.dim_512x512.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/assets/generated/pwa-icon.dim_512x512.png",
-      "sizes": "512x512",
-      "type": "image/png",
-      "purpose": "any maskable"
-    }
+    { "src": "/assets/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "/assets/icon-512.png", "sizes": "512x512", "type": "image/png" }
   ]
 }

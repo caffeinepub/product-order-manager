@@ -1,22 +1,8 @@
-import {
-  AlertDialog,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Select,
   SelectContent,
@@ -24,1216 +10,699 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  AlertTriangle,
-  Calendar,
-  ClipboardList,
-  Edit2,
-  FileText,
-  FolderOpen,
-  Image as ImageIcon,
-  IndianRupee,
+  Check,
+  Edit,
   Link,
   Loader2,
   LogOut,
-  MapPin,
   Package,
-  Phone,
   Plus,
   ShoppingBag,
   Tag,
   Trash2,
   Upload,
-  User,
+  X,
 } from "lucide-react";
-import { AnimatePresence, motion } from "motion/react";
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
-import type { Category, Product } from "../backend.d";
+import { ExternalBlob } from "../backend";
+import type { Category, Order, Product } from "../backend";
 import {
   useAddCategory,
   useAddProduct,
   useDeleteCategory,
+  useDeleteOrder,
   useDeleteProduct,
-  useEditProduct,
-  useListCategories,
-  useListOrders,
-  useListProducts,
+  useGetCategories,
+  useGetOrders,
+  useGetProducts,
+  useUpdateProduct,
 } from "../hooks/useQueries";
-
-interface ProductForm {
-  name: string;
-  description: string;
-  price: string;
-  imageUrl: string;
-  category: string;
-}
-
-const CATEGORY_PALETTE = [
-  "bg-amber-100 text-amber-800 border-amber-200",
-  "bg-green-100 text-green-800 border-green-200",
-  "bg-orange-100 text-orange-800 border-orange-200",
-  "bg-blue-100 text-blue-800 border-blue-200",
-  "bg-purple-100 text-purple-800 border-purple-200",
-  "bg-pink-100 text-pink-800 border-pink-200",
-];
-
-function getCategoryColor(index: number) {
-  return CATEGORY_PALETTE[index % CATEGORY_PALETTE.length];
-}
 
 interface Props {
   onLogout: () => void;
 }
 
 export default function AdminDashboardPage({ onLogout }: Props) {
-  const [activeTab, setActiveTab] = useState("orders");
-
-  // Product modal state
-  const [productDialogOpen, setProductDialogOpen] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
-  const [productForm, setProductForm] = useState<ProductForm>({
-    name: "",
-    description: "",
-    price: "",
-    imageUrl: "",
-    category: "",
-  });
-  const [formErrors, setFormErrors] = useState<Partial<ProductForm>>({});
-  const [imageMode, setImageMode] = useState<"url" | "upload">("url");
-  const [uploadedFileName, setUploadedFileName] = useState<string>("");
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Delete product dialog state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingProduct, setDeletingProduct] = useState<Product | null>(null);
-
-  // Category management state
-  const [newCategoryName, setNewCategoryName] = useState("");
-  const [deletingCategory, setDeletingCategory] = useState<Category | null>(
-    null,
-  );
-  const [deleteCategoryDialogOpen, setDeleteCategoryDialogOpen] =
-    useState(false);
-
-  // ---- Queries ----
-  const ordersQuery = useListOrders();
-  const productsQuery = useListProducts();
-  const categoriesQuery = useListCategories();
-
-  // ---- Mutations ----
-  const addProduct = useAddProduct();
-  const editProduct = useEditProduct();
-  const deleteProduct = useDeleteProduct();
-  const addCategory = useAddCategory();
-  const deleteCategory = useDeleteCategory();
-
-  const categories = categoriesQuery.data ?? [];
-
-  // Build category lookup maps from dynamic data
-  const categoryNameMap: Record<string, string> = {};
-  const categoryColorMap: Record<string, string> = {};
-  categories.forEach((cat, index) => {
-    categoryNameMap[cat.name] = cat.name;
-    categoryColorMap[cat.name] = getCategoryColor(index);
-  });
-
-  // ---- Validation ----
-  const validateForm = () => {
-    const errors: Partial<ProductForm> = {};
-    if (!productForm.name.trim()) errors.name = "Product name is required";
-    if (!productForm.description.trim())
-      errors.description = "Description is required";
-    if (!productForm.price) {
-      errors.price = "Price is required";
-    } else if (
-      Number.isNaN(Number.parseFloat(productForm.price)) ||
-      Number.parseFloat(productForm.price) < 0
-    ) {
-      errors.price = "Enter a valid price";
-    }
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  // ---- Handlers ----
-  const openAddDialog = () => {
-    setEditingProduct(null);
-    const defaultCat = categories[0]?.name ?? "";
-    setProductForm({
-      name: "",
-      description: "",
-      price: "",
-      imageUrl: "",
-      category: defaultCat,
-    });
-    setFormErrors({});
-    setImageMode("url");
-    setUploadedFileName("");
-    setProductDialogOpen(true);
-  };
-
-  const openEditDialog = (product: Product) => {
-    setEditingProduct(product);
-    setProductForm({
-      name: product.name,
-      description: product.description,
-      price: String(product.price),
-      imageUrl: product.imageUrl,
-      category: product.category || categories[0]?.name || "",
-    });
-    setFormErrors({});
-    setImageMode(product.imageUrl.startsWith("data:") ? "upload" : "url");
-    setUploadedFileName(
-      product.imageUrl.startsWith("data:") ? "Existing image" : "",
-    );
-    setProductDialogOpen(true);
-  };
-
-  const closeProductDialog = () => {
-    setProductDialogOpen(false);
-    setEditingProduct(null);
-    setProductForm({
-      name: "",
-      description: "",
-      price: "",
-      imageUrl: "",
-      category: "",
-    });
-    setFormErrors({});
-    setImageMode("url");
-    setUploadedFileName("");
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setUploadedFileName(file.name);
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const dataUrl = event.target?.result as string;
-      updateField("imageUrl", dataUrl);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleProductSave = async () => {
-    if (!validateForm()) return;
-    try {
-      if (editingProduct) {
-        await editProduct.mutateAsync({
-          id: editingProduct.id,
-          name: productForm.name,
-          description: productForm.description,
-          price: Number.parseFloat(productForm.price),
-          imageUrl: productForm.imageUrl,
-          category: productForm.category,
-        });
-        toast.success("Product updated successfully");
-      } else {
-        await addProduct.mutateAsync({
-          name: productForm.name,
-          description: productForm.description,
-          price: Number.parseFloat(productForm.price),
-          imageUrl: productForm.imageUrl,
-          category: productForm.category,
-        });
-        toast.success("Product added successfully");
-      }
-      closeProductDialog();
-    } catch (err) {
-      console.error(err);
-      toast.error(
-        editingProduct ? "Failed to update product" : "Failed to add product",
-      );
-    }
-  };
-
-  const openDeleteDialog = (product: Product) => {
-    setDeletingProduct(product);
-    setDeleteDialogOpen(true);
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!deletingProduct) return;
-    try {
-      await deleteProduct.mutateAsync(deletingProduct.id);
-      toast.success("Product deleted");
-      setDeleteDialogOpen(false);
-      setDeletingProduct(null);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete product");
-    }
-  };
-
-  // ---- Category handlers ----
-  const handleAddCategory = async () => {
-    const name = newCategoryName.trim();
-    if (!name) {
-      toast.error("Please enter a category name");
-      return;
-    }
-    try {
-      await addCategory.mutateAsync(name);
-      toast.success(`Category "${name}" added`);
-      setNewCategoryName("");
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to add category");
-    }
-  };
-
-  const openDeleteCategoryDialog = (cat: Category) => {
-    setDeletingCategory(cat);
-    setDeleteCategoryDialogOpen(true);
-  };
-
-  const handleDeleteCategoryConfirm = async () => {
-    if (!deletingCategory) return;
-    try {
-      await deleteCategory.mutateAsync(deletingCategory.id);
-      toast.success(`Category "${deletingCategory.name}" deleted`);
-      setDeleteCategoryDialogOpen(false);
-      setDeletingCategory(null);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to delete category");
-    }
-  };
-
-  const isSaving = addProduct.isPending || editProduct.isPending;
-
-  const formatDate = (timestamp: bigint) => {
-    const ms = Number(timestamp) / 1_000_000;
-    return new Date(ms).toLocaleDateString("en-US", {
-      year: "numeric",
-      month: "short",
-      day: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const updateField = (field: keyof ProductForm, value: string) => {
-    setProductForm((prev) => ({ ...prev, [field]: value }));
-    if (formErrors[field])
-      setFormErrors((prev) => ({ ...prev, [field]: undefined }));
-  };
-
-  const orders = ordersQuery.data ?? [];
-  const products = productsQuery.data ?? [];
-
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-40 bg-card border-b border-border">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
-              <ShoppingBag className="w-4 h-4 text-primary-foreground" />
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="font-display font-bold text-base text-foreground tracking-tight">
-                Harvest<span className="text-primary"> Table</span>
-              </span>
-              <span className="text-xs font-body text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                Admin
-              </span>
-            </div>
-          </div>
+      <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
+          <h1 className="font-heading text-xl font-bold">
+            🏠 Tasty Home — Admin
+          </h1>
           <Button
-            variant="outline"
+            variant="ghost"
             size="sm"
+            className="text-primary-foreground hover:bg-white/20"
             onClick={onLogout}
-            data-ocid="admin.logout_button"
-            className="gap-2 font-body text-sm border-border hover:border-destructive/40 hover:text-destructive hover:bg-destructive/5 transition-all"
           >
-            <LogOut className="w-3.5 h-3.5" />
-            Logout
+            <LogOut className="h-4 w-4 mr-2" /> Logout
           </Button>
         </div>
       </header>
 
-      <main className="container max-w-7xl mx-auto px-4 sm:px-6 py-8">
-        <motion.div
-          initial={{ opacity: 0, y: 16 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, ease: "easeOut" }}
-        >
-          {/* Stats Summary */}
-          <div className="grid grid-cols-3 gap-3 mb-8">
-            <div className="bg-card rounded-2xl border border-border p-3 sm:p-5 shadow-card">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <Package className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                </div>
-                <span className="font-body text-xs sm:text-sm text-muted-foreground">
-                  Products
-                </span>
-              </div>
-              <p className="font-display font-bold text-2xl sm:text-3xl text-foreground">
-                {productsQuery.isLoading ? "—" : products.length}
-              </p>
-            </div>
-            <div className="bg-card rounded-2xl border border-border p-3 sm:p-5 shadow-card">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                </div>
-                <span className="font-body text-xs sm:text-sm text-muted-foreground">
-                  Orders
-                </span>
-              </div>
-              <p className="font-display font-bold text-2xl sm:text-3xl text-foreground">
-                {ordersQuery.isLoading ? "—" : orders.length}
-              </p>
-            </div>
-            <div className="bg-card rounded-2xl border border-border p-3 sm:p-5 shadow-card">
-              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
-                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                  <FolderOpen className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
-                </div>
-                <span className="font-body text-xs sm:text-sm text-muted-foreground">
-                  Categories
-                </span>
-              </div>
-              <p className="font-display font-bold text-2xl sm:text-3xl text-foreground">
-                {categoriesQuery.isLoading ? "—" : categories.length}
-              </p>
-            </div>
-          </div>
-
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={setActiveTab}>
-            <TabsList className="bg-muted rounded-xl p-1 mb-6 h-auto w-full grid grid-cols-3">
-              <TabsTrigger
-                value="orders"
-                data-ocid="admin.orders_tab"
-                className="font-display font-semibold text-xs sm:text-sm rounded-lg px-2 sm:px-5 py-2.5 gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
-              >
-                <ClipboardList className="w-4 h-4 shrink-0" />
-                <span>Orders</span>
-                {orders.length > 0 && (
-                  <Badge className="bg-primary text-primary-foreground text-xs px-1.5 py-0 h-5 min-w-5 rounded-full font-display font-bold">
-                    {orders.length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger
-                value="products"
-                data-ocid="admin.products_tab"
-                className="font-display font-semibold text-xs sm:text-sm rounded-lg px-2 sm:px-5 py-2.5 gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
-              >
-                <Package className="w-4 h-4 shrink-0" />
-                <span>Products</span>
-              </TabsTrigger>
-              <TabsTrigger
-                value="categories"
-                data-ocid="admin.categories_tab"
-                className="font-display font-semibold text-xs sm:text-sm rounded-lg px-2 sm:px-5 py-2.5 gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
-              >
-                <FolderOpen className="w-4 h-4 shrink-0" />
-                <span>Categories</span>
-              </TabsTrigger>
-            </TabsList>
-
-            {/* Orders Tab */}
-            <TabsContent value="orders">
-              <div
-                className="bg-card rounded-2xl border border-border shadow-card overflow-hidden"
-                data-ocid="admin.orders_table"
-              >
-                <div className="px-6 py-4 border-b border-border flex items-center justify-between">
-                  <h2 className="font-display font-bold text-base text-foreground">
-                    Customer Orders
-                  </h2>
-                  {ordersQuery.isLoading && (
-                    <Loader2
-                      className="w-4 h-4 text-muted-foreground animate-spin"
-                      data-ocid="admin.loading_state"
-                    />
-                  )}
-                </div>
-
-                {ordersQuery.isLoading ? (
-                  <div className="p-6 space-y-3">
-                    {(["s1", "s2", "s3", "s4"] as const).map((k) => (
-                      <Skeleton key={k} className="h-16 rounded-xl" />
-                    ))}
-                  </div>
-                ) : orders.length === 0 ? (
-                  <div
-                    className="py-16 text-center"
-                    data-ocid="admin.orders_table.empty_state"
-                  >
-                    <ClipboardList className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="font-display font-semibold text-foreground mb-1">
-                      No orders yet
-                    </p>
-                    <p className="font-body text-sm text-muted-foreground">
-                      Customer orders will appear here.
-                    </p>
-                  </div>
-                ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead>
-                        <tr className="bg-muted/50">
-                          {[
-                            "#",
-                            "Customer",
-                            "Contact",
-                            "City",
-                            "Product",
-                            "Date",
-                          ].map((h) => (
-                            <th
-                              key={h}
-                              className="px-5 py-3 text-left font-display font-semibold text-xs text-muted-foreground uppercase tracking-wide"
-                            >
-                              {h}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {orders.map((order, index) => (
-                          <tr
-                            key={order.id.toString()}
-                            data-ocid={`admin.orders_table.row.${index + 1}`}
-                            className="border-t border-border hover:bg-muted/30 transition-colors"
-                          >
-                            <td className="px-5 py-4">
-                              <span className="font-body text-sm text-muted-foreground">
-                                {String(index + 1).padStart(2, "0")}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-2.5">
-                                <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                                  <User className="w-3.5 h-3.5 text-primary" />
-                                </div>
-                                <span className="font-body text-sm font-medium text-foreground">
-                                  {order.customerName}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-1.5 font-body text-sm">
-                                <Phone className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                <a
-                                  href={`tel:${order.contactNumber}`}
-                                  className="text-primary hover:underline"
-                                >
-                                  {order.contactNumber}
-                                </a>
-                              </div>
-                            </td>
-                            <td className="px-5 py-4">
-                              {order.cityName ? (
-                                <div className="flex items-center gap-1.5 font-body text-sm text-foreground">
-                                  <MapPin className="w-3.5 h-3.5 text-muted-foreground shrink-0" />
-                                  {order.cityName}
-                                </div>
-                              ) : (
-                                <span className="font-body text-sm text-muted-foreground">
-                                  —
-                                </span>
-                              )}
-                            </td>
-                            <td className="px-5 py-4">
-                              <span className="font-body text-sm text-foreground">
-                                {order.productName}
-                              </span>
-                            </td>
-                            <td className="px-5 py-4">
-                              <div className="flex items-center gap-1.5 font-body text-xs text-muted-foreground">
-                                <Calendar className="w-3 h-3 shrink-0" />
-                                {formatDate(order.timestamp)}
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Products Tab */}
-            <TabsContent value="products">
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display font-bold text-base text-foreground">
-                    Manage Products
-                  </h2>
-                  <Button
-                    onClick={openAddDialog}
-                    data-ocid="admin.add_product_button"
-                    className="gap-2 bg-primary text-primary-foreground font-body font-semibold text-sm rounded-xl btn-glow"
-                  >
-                    <Plus className="w-4 h-4" />
-                    Add Product
-                  </Button>
-                </div>
-
-                {productsQuery.isLoading ? (
-                  <div className="grid gap-3">
-                    {(["p1", "p2", "p3"] as const).map((k) => (
-                      <Skeleton key={k} className="h-24 rounded-2xl" />
-                    ))}
-                  </div>
-                ) : products.length === 0 ? (
-                  <div
-                    className="bg-card rounded-2xl border border-border shadow-card py-16 text-center"
-                    data-ocid="products.empty_state"
-                  >
-                    <Package className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="font-display font-semibold text-foreground mb-1">
-                      No products yet
-                    </p>
-                    <p className="font-body text-sm text-muted-foreground mb-4">
-                      Add your first product to get started.
-                    </p>
-                    <Button
-                      onClick={openAddDialog}
-                      size="sm"
-                      className="gap-2 bg-primary text-primary-foreground font-display font-semibold rounded-xl"
-                    >
-                      <Plus className="w-4 h-4" />
-                      Add First Product
-                    </Button>
-                  </div>
-                ) : (
-                  <AnimatePresence mode="popLayout">
-                    <div className="grid gap-3">
-                      {products.map((product, index) => {
-                        const catIndex = categories.findIndex(
-                          (c) => c.name === product.category,
-                        );
-                        const badgeColor =
-                          catIndex >= 0
-                            ? getCategoryColor(catIndex)
-                            : "bg-muted text-muted-foreground border-border";
-                        return (
-                          <motion.div
-                            key={product.id.toString()}
-                            layout
-                            initial={{ opacity: 0, x: -16 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 16 }}
-                            transition={{ duration: 0.3, ease: "easeOut" }}
-                            className="bg-card rounded-2xl border border-border shadow-card p-4 flex items-center gap-4"
-                            data-ocid={`products.item.${index + 1}`}
-                          >
-                            {/* Thumbnail */}
-                            <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted shrink-0">
-                              {product.imageUrl ? (
-                                <img
-                                  src={product.imageUrl}
-                                  alt={product.name}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-full h-full flex items-center justify-center">
-                                  <Package className="w-6 h-6 text-muted-foreground/30" />
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Info */}
-                            <div className="flex-1 min-w-0">
-                              <p className="font-display font-bold text-sm text-foreground line-clamp-1">
-                                {product.name}
-                              </p>
-                              <p className="font-body text-xs text-muted-foreground line-clamp-1 mt-0.5">
-                                {product.description}
-                              </p>
-                              <div className="flex items-center gap-2 mt-1.5">
-                                <span className="text-xs font-display font-bold text-primary">
-                                  ₹{Number(product.price).toFixed(2)}
-                                </span>
-                                {product.category && (
-                                  <span
-                                    className={`inline-block text-xs font-display font-semibold px-2 py-0.5 rounded-full border ${badgeColor}`}
-                                  >
-                                    {product.category}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            {/* Actions */}
-                            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-1.5 sm:gap-2 shrink-0">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openEditDialog(product)}
-                                data-ocid={`admin.edit_button.${index + 1}`}
-                                className="gap-1.5 font-body text-xs border-border hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all h-8 px-3"
-                              >
-                                <Edit2 className="w-3.5 h-3.5" />
-                                Edit
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => openDeleteDialog(product)}
-                                data-ocid={`admin.delete_button.${index + 1}`}
-                                className="gap-1.5 font-body text-xs border-border hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-all h-8 px-3"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                                Delete
-                              </Button>
-                            </div>
-                          </motion.div>
-                        );
-                      })}
-                    </div>
-                  </AnimatePresence>
-                )}
-              </div>
-            </TabsContent>
-
-            {/* Categories Tab */}
-            <TabsContent value="categories">
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-display font-bold text-base text-foreground">
-                    Manage Categories
-                  </h2>
-                </div>
-
-                {/* Add Category Form */}
-                <div className="bg-card rounded-2xl border border-border shadow-card p-5">
-                  <h3 className="font-display font-semibold text-sm text-foreground mb-3">
-                    Add New Category
-                  </h3>
-                  <div className="flex gap-3">
-                    <Input
-                      placeholder="e.g. Spices, Beverages..."
-                      value={newCategoryName}
-                      onChange={(e) => setNewCategoryName(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") handleAddCategory();
-                      }}
-                      className="font-body rounded-xl h-11 flex-1"
-                      data-ocid="admin.category_name_input"
-                    />
-                    <Button
-                      onClick={handleAddCategory}
-                      disabled={
-                        addCategory.isPending || !newCategoryName.trim()
-                      }
-                      data-ocid="admin.category_add_button"
-                      className="gap-2 bg-primary text-primary-foreground font-body font-semibold text-sm rounded-xl btn-glow shrink-0"
-                    >
-                      {addCategory.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Plus className="w-4 h-4" />
-                      )}
-                      Add Category
-                    </Button>
-                  </div>
-                </div>
-
-                {/* Categories List */}
-                <div className="bg-card rounded-2xl border border-border shadow-card overflow-hidden">
-                  <div className="px-6 py-4 border-b border-border">
-                    <h3 className="font-display font-semibold text-sm text-foreground">
-                      Existing Categories
-                    </h3>
-                  </div>
-
-                  {categoriesQuery.isLoading ? (
-                    <div
-                      className="p-6 space-y-3"
-                      data-ocid="admin.categories_list.loading_state"
-                    >
-                      {(["c1", "c2", "c3"] as const).map((k) => (
-                        <Skeleton key={k} className="h-14 rounded-xl" />
-                      ))}
-                    </div>
-                  ) : categories.length === 0 ? (
-                    <div
-                      className="py-16 text-center"
-                      data-ocid="admin.categories_list.empty_state"
-                    >
-                      <FolderOpen className="w-10 h-10 text-muted-foreground/30 mx-auto mb-3" />
-                      <p className="font-display font-semibold text-foreground mb-1">
-                        No categories yet
-                      </p>
-                      <p className="font-body text-sm text-muted-foreground">
-                        Add your first category above to organise products.
-                      </p>
-                    </div>
-                  ) : (
-                    <AnimatePresence mode="popLayout">
-                      <div className="divide-y divide-border">
-                        {categories.map((cat, index) => (
-                          <motion.div
-                            key={cat.id.toString()}
-                            layout
-                            initial={{ opacity: 0, x: -16 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 16 }}
-                            transition={{ duration: 0.25, ease: "easeOut" }}
-                            className="flex items-center justify-between px-6 py-4"
-                            data-ocid={`admin.categories_list.item.${index + 1}`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <span
-                                className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-display font-bold ${getCategoryColor(index)}`}
-                              >
-                                {index + 1}
-                              </span>
-                              <span className="font-body font-medium text-sm text-foreground">
-                                {cat.name}
-                              </span>
-                              <span
-                                className={`text-xs font-display font-semibold px-2 py-0.5 rounded-full border ${getCategoryColor(index)}`}
-                              >
-                                {cat.name}
-                              </span>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDeleteCategoryDialog(cat)}
-                              data-ocid={`admin.category_delete_button.${index + 1}`}
-                              className="gap-1.5 font-body text-xs border-border hover:border-destructive/40 hover:bg-destructive/5 hover:text-destructive transition-all h-8 px-3"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                              Delete
-                            </Button>
-                          </motion.div>
-                        ))}
-                      </div>
-                    </AnimatePresence>
-                  )}
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </motion.div>
-      </main>
-
-      <footer className="border-t border-border bg-card py-6 mt-8">
-        <div className="container max-w-7xl mx-auto px-4 sm:px-6 text-center">
-          <p className="font-body text-xs text-muted-foreground">
-            © {new Date().getFullYear()}.{" "}
-            <a
-              href={`https://caffeine.ai?utm_source=caffeine-footer&utm_medium=referral&utm_content=${encodeURIComponent(window.location.hostname)}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-primary hover:underline"
+      <main className="max-w-4xl mx-auto px-4 py-6">
+        <Tabs defaultValue="products">
+          <TabsList className="w-full mb-6 bg-muted">
+            <TabsTrigger
+              value="products"
+              className="flex-1"
+              data-ocid="admin.products.tab"
             >
-              Built with ♥ using caffeine.ai
-            </a>
-          </p>
-        </div>
-      </footer>
+              <Package className="h-4 w-4 mr-2" /> Products
+            </TabsTrigger>
+            <TabsTrigger
+              value="categories"
+              className="flex-1"
+              data-ocid="admin.categories.tab"
+            >
+              <Tag className="h-4 w-4 mr-2" /> Categories
+            </TabsTrigger>
+            <TabsTrigger
+              value="orders"
+              className="flex-1"
+              data-ocid="admin.orders.tab"
+            >
+              <ShoppingBag className="h-4 w-4 mr-2" /> Orders
+            </TabsTrigger>
+          </TabsList>
 
-      {/* Add/Edit Product Dialog */}
-      <Dialog
-        open={productDialogOpen}
-        onOpenChange={(open) => {
-          if (!open) closeProductDialog();
-        }}
-      >
-        <DialogContent
-          className="sm:max-w-lg rounded-2xl bg-card"
-          data-ocid="admin.add_product_dialog"
+          <TabsContent value="products">
+            <ProductsTab />
+          </TabsContent>
+          <TabsContent value="categories">
+            <CategoriesTab />
+          </TabsContent>
+          <TabsContent value="orders">
+            <OrdersTab />
+          </TabsContent>
+        </Tabs>
+      </main>
+    </div>
+  );
+}
+
+function ProductsTab() {
+  const { data: products = [], isLoading } = useGetProducts();
+  const { data: categories = [] } = useGetCategories();
+  const addProductMutation = useAddProduct();
+  const updateProductMutation = useUpdateProduct();
+  const deleteProductMutation = useDeleteProduct();
+
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showAddForm, setShowAddForm] = useState(false);
+
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [category, setCategory] = useState("");
+  const [price, setPrice] = useState("");
+  const [imageMode, setImageMode] = useState<"url" | "file">("url");
+  const [imageUrl, setImageUrl] = useState("");
+  const [imageFile, setImageFile] = useState<File | null>(null);
+
+  const resetForm = () => {
+    setName("");
+    setDescription("");
+    setCategory("");
+    setPrice("");
+    setImageUrl("");
+    setImageFile(null);
+    setImageMode("url");
+  };
+
+  const startEdit = (p: Product) => {
+    setEditingProduct(p);
+    setName(p.name);
+    setDescription(p.description);
+    setCategory(p.category);
+    setPrice(String(p.price));
+    setImageUrl(p.image.getDirectURL() || "");
+    setImageMode("url");
+    setShowAddForm(false);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!name.trim() || !price) {
+      toast.error("Name and price are required");
+      return;
+    }
+
+    let image: ExternalBlob;
+    if (imageMode === "file" && imageFile) {
+      const bytes = new Uint8Array(await imageFile.arrayBuffer());
+      image = ExternalBlob.fromBytes(bytes);
+    } else if (imageUrl.trim()) {
+      image = ExternalBlob.fromURL(imageUrl.trim());
+    } else {
+      image = ExternalBlob.fromURL(
+        "/assets/generated/product-groceries.dim_400x300.jpg",
+      );
+    }
+
+    try {
+      if (editingProduct) {
+        await updateProductMutation.mutateAsync({
+          id: editingProduct.id,
+          name: name.trim(),
+          description: description.trim(),
+          category: category || categories[0]?.name || "General",
+          image,
+          price: BigInt(Math.round(Number(price))),
+        });
+        toast.success("Product updated!");
+        setEditingProduct(null);
+      } else {
+        await addProductMutation.mutateAsync({
+          name: name.trim(),
+          description: description.trim(),
+          category: category || categories[0]?.name || "General",
+          image,
+          price: BigInt(Math.round(Number(price))),
+        });
+        toast.success("Product added!");
+        setShowAddForm(false);
+      }
+      resetForm();
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to save product");
+    }
+  };
+
+  const isPending =
+    addProductMutation.isPending || updateProductMutation.isPending;
+  const isEditing = !!editingProduct;
+  const formVisible = showAddForm || isEditing;
+
+  return (
+    <div className="space-y-6">
+      {!formVisible && (
+        <Button
+          className="bg-primary hover:bg-primary/90 text-primary-foreground"
+          onClick={() => {
+            resetForm();
+            setShowAddForm(true);
+            setEditingProduct(null);
+          }}
         >
-          <DialogHeader>
-            <DialogTitle className="font-display font-bold text-xl text-foreground">
-              {editingProduct ? "Edit Product" : "Add New Product"}
-            </DialogTitle>
-          </DialogHeader>
+          <Plus className="h-4 w-4 mr-2" /> Add Product
+        </Button>
+      )}
 
-          <div className="space-y-4 py-2">
-            {/* Name */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="prod-name"
-                className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
-              >
-                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                Product Name <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="prod-name"
-                placeholder="e.g. Pro Wireless Headphones"
-                value={productForm.name}
-                onChange={(e) => updateField("name", e.target.value)}
-                className="font-body rounded-xl h-11"
-                data-ocid="admin.product_name_input"
-              />
-              {formErrors.name && (
-                <p className="text-destructive text-xs font-body">
-                  {formErrors.name}
-                </p>
-              )}
+      {formVisible && (
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading text-lg font-semibold">
+              {isEditing ? "Edit Product" : "Add New Product"}
+            </h2>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => {
+                setShowAddForm(false);
+                setEditingProduct(null);
+                resetForm();
+              }}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-sm">Product Name *</Label>
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. Mango Pickle"
+                  className="mt-1"
+                  data-ocid="admin.product.name.input"
+                />
+              </div>
+              <div>
+                <Label className="text-sm">Price (₹) *</Label>
+                <Input
+                  type="number"
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  placeholder="e.g. 150"
+                  className="mt-1"
+                  data-ocid="admin.product.price.input"
+                />
+              </div>
             </div>
-
-            {/* Description */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="prod-desc"
-                className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
-              >
-                <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                Description <span className="text-destructive">*</span>
-              </Label>
+            <div>
+              <Label className="text-sm">Description</Label>
               <Textarea
-                id="prod-desc"
-                placeholder="Brief description of the product..."
-                value={productForm.description}
-                onChange={(e) => updateField("description", e.target.value)}
-                className="font-body rounded-xl resize-none"
-                rows={3}
-                data-ocid="admin.product_desc_input"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Product description..."
+                className="mt-1 resize-none"
+                rows={2}
+                data-ocid="admin.product.description.textarea"
               />
-              {formErrors.description && (
-                <p className="text-destructive text-xs font-body">
-                  {formErrors.description}
-                </p>
-              )}
             </div>
-
-            {/* Price */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="prod-price"
-                className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
-              >
-                <IndianRupee className="w-3.5 h-3.5 text-muted-foreground" />
-                Price <span className="text-destructive">*</span>
-              </Label>
-              <Input
-                id="prod-price"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="99.99"
-                value={productForm.price}
-                onChange={(e) => updateField("price", e.target.value)}
-                className="font-body rounded-xl h-11"
-                data-ocid="admin.product_price_input"
-              />
-              {formErrors.price && (
-                <p className="text-destructive text-xs font-body">
-                  {formErrors.price}
-                </p>
-              )}
-            </div>
-
-            {/* Category */}
-            <div className="space-y-1.5">
-              <Label
-                htmlFor="prod-category"
-                className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5"
-              >
-                <Tag className="w-3.5 h-3.5 text-muted-foreground" />
-                Category
-              </Label>
-              <Select
-                value={productForm.category}
-                onValueChange={(value) => updateField("category", value)}
-                disabled={categoriesQuery.isLoading || categories.length === 0}
-              >
+            <div>
+              <Label className="text-sm">Category</Label>
+              <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger
-                  id="prod-category"
-                  className="font-body rounded-xl h-11"
-                  data-ocid="admin.product_category_select"
+                  className="mt-1"
+                  data-ocid="admin.product.category.select"
                 >
-                  <SelectValue
-                    placeholder={
-                      categoriesQuery.isLoading
-                        ? "Loading categories..."
-                        : categories.length === 0
-                          ? "No categories — add some first"
-                          : "Select a category"
-                    }
-                  />
+                  <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {categories.map((cat) => (
-                    <SelectItem
-                      key={cat.id.toString()}
-                      value={cat.name}
-                      className="font-body"
-                    >
-                      {cat.name}
+                  {categories.map((c) => (
+                    <SelectItem key={String(c.id)} value={c.name}>
+                      {c.name}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
-              {categories.length === 0 && !categoriesQuery.isLoading && (
-                <p className="text-muted-foreground text-xs font-body">
-                  Go to the Categories tab to add categories first.
-                </p>
-              )}
             </div>
-
-            {/* Product Image — dual mode picker */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <Label className="font-display font-semibold text-sm text-foreground flex items-center gap-1.5">
-                  <ImageIcon className="w-3.5 h-3.5 text-muted-foreground" />
-                  Product Image
-                </Label>
-                {/* Mode toggle */}
-                <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImageMode("url");
-                      setUploadedFileName("");
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-display font-semibold transition-all ${
-                      imageMode === "url"
-                        ? "bg-card shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Link className="w-3 h-3" />
-                    URL
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setImageMode("upload");
-                      updateField("imageUrl", "");
-                      setUploadedFileName("");
-                    }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-display font-semibold transition-all ${
-                      imageMode === "upload"
-                        ? "bg-card shadow-sm text-foreground"
-                        : "text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    <Upload className="w-3 h-3" />
-                    Upload
-                  </button>
-                </div>
+            <div>
+              <Label className="text-sm">Product Image</Label>
+              <div className="flex gap-2 mt-1 mb-2">
+                <Button
+                  type="button"
+                  variant={imageMode === "url" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setImageMode("url")}
+                  className={
+                    imageMode === "url"
+                      ? "bg-primary text-primary-foreground"
+                      : "border-primary/30 text-primary"
+                  }
+                >
+                  <Link className="h-3.5 w-3.5 mr-1" /> URL
+                </Button>
+                <Button
+                  type="button"
+                  variant={imageMode === "file" ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setImageMode("file")}
+                  className={
+                    imageMode === "file"
+                      ? "bg-primary text-primary-foreground"
+                      : "border-primary/30 text-primary"
+                  }
+                >
+                  <Upload className="h-3.5 w-3.5 mr-1" /> Upload
+                </Button>
               </div>
-
               {imageMode === "url" ? (
                 <Input
-                  id="prod-image"
-                  placeholder="https://example.com/image.jpg"
-                  value={productForm.imageUrl}
-                  onChange={(e) => updateField("imageUrl", e.target.value)}
-                  className="font-body rounded-xl h-11"
-                  data-ocid="admin.product_image_input"
+                  value={imageUrl}
+                  onChange={(e) => setImageUrl(e.target.value)}
+                  placeholder="https://..."
+                  data-ocid="admin.product.image_url.input"
                 />
               ) : (
-                <div className="flex items-center gap-2">
-                  {/* Hidden native file input */}
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept="image/*"
-                    className="hidden"
-                    onChange={handleFileChange}
-                    data-ocid="admin.product_image_dropzone"
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => fileInputRef.current?.click()}
-                    data-ocid="admin.product_image_upload_button"
-                    className="gap-2 font-body text-sm rounded-xl h-11 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 hover:text-primary transition-all shrink-0"
-                  >
-                    <Upload className="w-4 h-4" />
-                    Choose File
-                  </Button>
-                  {uploadedFileName ? (
-                    <span className="font-body text-xs text-foreground truncate min-w-0 flex-1 bg-muted px-3 py-2 rounded-xl">
-                      {uploadedFileName}
-                    </span>
-                  ) : (
-                    <span className="font-body text-xs text-muted-foreground truncate">
-                      No file chosen
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {/* Image Preview */}
-              {productForm.imageUrl && (
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.97 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.2 }}
-                  className="rounded-xl overflow-hidden border border-border h-32 bg-muted"
-                >
-                  <img
-                    src={productForm.imageUrl}
-                    alt="Preview"
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).style.display = "none";
-                    }}
-                  />
-                </motion.div>
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={(e) => setImageFile(e.target.files?.[0] || null)}
+                  className="block w-full text-sm file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary/10 file:text-primary hover:file:bg-primary/20 cursor-pointer"
+                  data-ocid="admin.product.upload_button"
+                />
               )}
             </div>
-          </div>
+            <div className="flex gap-2 pt-2">
+              <Button
+                type="submit"
+                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                disabled={isPending}
+                data-ocid="admin.add_product.submit_button"
+              >
+                {isPending ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Check className="h-4 w-4 mr-2" />
+                )}
+                {isEditing ? "Save Changes" : "Add Product"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setShowAddForm(false);
+                  setEditingProduct(null);
+                  resetForm();
+                }}
+              >
+                Cancel
+              </Button>
+            </div>
+          </form>
+        </div>
+      )}
 
-          <DialogFooter className="gap-2 pt-2">
-            <Button
-              variant="outline"
-              onClick={closeProductDialog}
-              className="font-display font-semibold rounded-xl flex-1 border-border"
-              data-ocid="admin.add_product_dialog.cancel_button"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleProductSave}
-              disabled={isSaving}
-              data-ocid="admin.product_save_button"
-              className="bg-primary text-primary-foreground font-display font-semibold rounded-xl flex-1 btn-glow"
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {editingProduct ? "Saving..." : "Adding..."}
-                </>
-              ) : editingProduct ? (
-                "Save Changes"
-              ) : (
-                "Add Product"
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Product Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent
-          className="rounded-2xl bg-card sm:max-w-md"
-          data-ocid="admin.delete_dialog"
+      {isLoading ? (
+        <div className="space-y-3">
+          {["a", "b", "c"].map((k) => (
+            <Skeleton key={k} className="h-20 rounded-xl" />
+          ))}
+        </div>
+      ) : products.length === 0 ? (
+        <div
+          className="text-center py-12 text-muted-foreground"
+          data-ocid="admin.products.empty_state"
         >
-          <AlertDialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-destructive" />
-              </div>
-              <AlertDialogTitle className="font-display font-bold text-xl text-foreground">
-                Delete Product?
-              </AlertDialogTitle>
-            </div>
-            <AlertDialogDescription className="font-body text-sm text-muted-foreground leading-relaxed">
-              You're about to delete{" "}
-              <strong className="text-foreground">
-                {deletingProduct?.name}
-              </strong>
-              . This action cannot be undone and the product will be removed
-              permanently.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 mt-2">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialogOpen(false)}
-              data-ocid="admin.delete_cancel_button"
-              className="font-display font-semibold rounded-xl flex-1 border-border"
-              disabled={deleteProduct.isPending}
-            >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteConfirm}
-              disabled={deleteProduct.isPending}
-              data-ocid="admin.delete_confirm_button"
-              className="font-display font-semibold rounded-xl flex-1"
-            >
-              {deleteProduct.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Product
-                </>
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+          <Package className="h-10 w-10 mx-auto mb-2 opacity-40" />
+          <p>No products yet. Add your first product above.</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {products.map((product) => (
+            <ProductRow
+              key={String(product.id)}
+              product={product}
+              onEdit={startEdit}
+              onDelete={async () => {
+                try {
+                  await deleteProductMutation.mutateAsync(product.id);
+                  toast.success("Product deleted");
+                } catch {
+                  toast.error("Failed to delete");
+                }
+              }}
+              isDeleting={deleteProductMutation.isPending}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
-      {/* Delete Category Confirmation Dialog */}
-      <AlertDialog
-        open={deleteCategoryDialogOpen}
-        onOpenChange={setDeleteCategoryDialogOpen}
+function ProductRow({
+  product,
+  onEdit,
+  onDelete,
+  isDeleting,
+}: {
+  product: Product;
+  onEdit: (p: Product) => void;
+  onDelete: () => void;
+  isDeleting: boolean;
+}) {
+  const imageUrl = product.image.getDirectURL();
+  return (
+    <div className="flex items-center gap-3 bg-card border border-border rounded-xl p-3">
+      {imageUrl ? (
+        <img
+          src={imageUrl}
+          alt={product.name}
+          className="h-14 w-14 rounded-lg object-cover flex-shrink-0"
+        />
+      ) : (
+        <div className="h-14 w-14 rounded-lg bg-muted flex items-center justify-center text-2xl flex-shrink-0">
+          🍱
+        </div>
+      )}
+      <div className="flex-1 min-w-0">
+        <p className="font-medium text-sm leading-tight line-clamp-1">
+          {product.name}
+        </p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          {product.category}
+        </p>
+        <p className="text-primary font-bold text-sm">
+          ₹{Number(product.price)}
+        </p>
+      </div>
+      <div className="flex flex-col sm:flex-row gap-1 flex-shrink-0">
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-primary/30 text-primary h-8 px-2"
+          onClick={() => onEdit(product)}
+          data-ocid="admin.edit_product.button"
+        >
+          <Edit className="h-3.5 w-3.5" />
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-destructive/30 text-destructive h-8 px-2"
+          onClick={onDelete}
+          disabled={isDeleting}
+          data-ocid="admin.delete_product.button"
+        >
+          {isDeleting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+function CategoriesTab() {
+  const { data: categories = [], isLoading } = useGetCategories();
+  const addCategoryMutation = useAddCategory();
+  const deleteCategoryMutation = useDeleteCategory();
+  const [newCategory, setNewCategory] = useState("");
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newCategory.trim()) {
+      toast.error("Category name is required");
+      return;
+    }
+    try {
+      await addCategoryMutation.mutateAsync({ name: newCategory.trim() });
+      toast.success("Category added!");
+      setNewCategory("");
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to add category");
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-card border border-border rounded-xl p-5">
+        <h2 className="font-heading text-lg font-semibold mb-4">
+          Add Category
+        </h2>
+        <form onSubmit={handleAdd} className="flex gap-2">
+          <Input
+            value={newCategory}
+            onChange={(e) => setNewCategory(e.target.value)}
+            placeholder="e.g. Spices"
+            className="flex-1"
+            data-ocid="admin.category.name.input"
+          />
+          <Button
+            type="submit"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground"
+            disabled={addCategoryMutation.isPending}
+            data-ocid="admin.add_category.submit_button"
+          >
+            {addCategoryMutation.isPending ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Plus className="h-4 w-4" />
+            )}
+          </Button>
+        </form>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-2">
+          {["a", "b", "c"].map((k) => (
+            <Skeleton key={k} className="h-12 rounded-xl" />
+          ))}
+        </div>
+      ) : categories.length === 0 ? (
+        <div
+          className="text-center py-12 text-muted-foreground"
+          data-ocid="admin.categories.empty_state"
+        >
+          <Tag className="h-10 w-10 mx-auto mb-2 opacity-40" />
+          <p>No categories yet.</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {categories.map((cat) => (
+            <CategoryRow
+              key={String(cat.id)}
+              category={cat}
+              onDelete={async () => {
+                try {
+                  await deleteCategoryMutation.mutateAsync(cat.id);
+                  toast.success("Category deleted");
+                } catch {
+                  toast.error("Failed to delete");
+                }
+              }}
+              isDeleting={deleteCategoryMutation.isPending}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function CategoryRow({
+  category,
+  onDelete,
+  isDeleting,
+}: {
+  category: Category;
+  onDelete: () => void;
+  isDeleting: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3">
+      <div className="flex items-center gap-2">
+        <Tag className="h-4 w-4 text-primary" />
+        <span className="font-medium">{category.name}</span>
+      </div>
+      <Button
+        size="sm"
+        variant="outline"
+        className="border-destructive/30 text-destructive h-8 px-2"
+        onClick={onDelete}
+        disabled={isDeleting}
+        data-ocid="admin.delete_category.button"
       >
-        <AlertDialogContent
-          className="rounded-2xl bg-card sm:max-w-md"
-          data-ocid="admin.delete_category_dialog"
+        {isDeleting ? (
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Trash2 className="h-3.5 w-3.5" />
+        )}
+      </Button>
+    </div>
+  );
+}
+
+function OrdersTab() {
+  const { data: orders = [], isLoading } = useGetOrders();
+  const deleteOrderMutation = useDeleteOrder();
+
+  return (
+    <div className="space-y-4">
+      {isLoading ? (
+        <div className="space-y-3">
+          {["a", "b", "c"].map((k) => (
+            <Skeleton key={k} className="h-32 rounded-xl" />
+          ))}
+        </div>
+      ) : orders.length === 0 ? (
+        <div
+          className="text-center py-16 text-muted-foreground"
+          data-ocid="admin.orders.empty_state"
         >
-          <AlertDialogHeader>
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center shrink-0">
-                <AlertTriangle className="w-5 h-5 text-destructive" />
-              </div>
-              <AlertDialogTitle className="font-display font-bold text-xl text-foreground">
-                Delete Category?
-              </AlertDialogTitle>
-            </div>
-            <AlertDialogDescription className="font-body text-sm text-muted-foreground leading-relaxed">
-              You're about to delete the category{" "}
-              <strong className="text-foreground">
-                "{deletingCategory?.name}"
-              </strong>
-              . Products in this category will remain but will no longer be
-              associated with it.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter className="gap-2 mt-2">
-            <Button
+          <ShoppingBag className="h-12 w-12 mx-auto mb-3 opacity-40" />
+          <p className="font-heading text-lg">No orders yet</p>
+          <p className="text-sm mt-1">
+            Orders will appear here once customers place them
+          </p>
+        </div>
+      ) : (
+        orders.map((order) => (
+          <OrderRow
+            key={String(order.id)}
+            order={order}
+            onDelete={async () => {
+              try {
+                await deleteOrderMutation.mutateAsync(order.id);
+                toast.success("Order deleted");
+              } catch {
+                toast.error("Failed to delete order");
+              }
+            }}
+            isDeleting={deleteOrderMutation.isPending}
+          />
+        ))
+      )}
+    </div>
+  );
+}
+
+function OrderRow({
+  order,
+  onDelete,
+  isDeleting,
+}: {
+  order: Order;
+  onDelete: () => void;
+  isDeleting: boolean;
+}) {
+  const date = new Date(Number(order.timestamp) / 1_000_000);
+  return (
+    <div className="bg-card border border-border rounded-xl p-4">
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="font-heading font-semibold">
+              {order.customerName}
+            </span>
+            <Badge
               variant="outline"
-              onClick={() => setDeleteCategoryDialogOpen(false)}
-              data-ocid="admin.delete_category_cancel_button"
-              className="font-display font-semibold rounded-xl flex-1 border-border"
-              disabled={deleteCategory.isPending}
+              className="border-primary/30 text-primary text-xs"
             >
-              Cancel
-            </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDeleteCategoryConfirm}
-              disabled={deleteCategory.isPending}
-              data-ocid="admin.delete_category_confirm_button"
-              className="font-display font-semibold rounded-xl flex-1"
-            >
-              {deleteCategory.isPending ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4 mr-2" />
-                  Delete Category
-                </>
-              )}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+              #{String(order.id)}
+            </Badge>
+          </div>
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 text-sm text-muted-foreground mt-0.5">
+            <span>📞 {order.contactNumber}</span>
+            {order.city && <span>📍 {order.city}</span>}
+            <span>
+              🕒 {date.toLocaleDateString()} {date.toLocaleTimeString()}
+            </span>
+          </div>
+        </div>
+        <Button
+          size="sm"
+          variant="outline"
+          className="border-destructive/30 text-destructive flex-shrink-0"
+          onClick={onDelete}
+          disabled={isDeleting}
+          data-ocid="admin.delete_order.button"
+        >
+          {isDeleting ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <Trash2 className="h-3.5 w-3.5" />
+          )}
+        </Button>
+      </div>
+      <Separator className="my-3" />
+      <div className="space-y-1">
+        {order.items.map((item) => (
+          <div
+            key={String(item.productId)}
+            className="flex justify-between text-sm"
+          >
+            <span>
+              {item.productName}{" "}
+              <span className="text-muted-foreground">
+                ×{Number(item.quantity)}
+              </span>
+            </span>
+            <span className="font-medium">
+              ₹{Number(item.price) * Number(item.quantity)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-between items-center mt-3 pt-2 border-t border-border">
+        <span className="text-sm text-muted-foreground">Total</span>
+        <span className="font-heading font-bold text-primary text-lg">
+          ₹{Number(order.totalAmount)}
+        </span>
+      </div>
     </div>
   );
 }

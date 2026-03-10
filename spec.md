@@ -1,25 +1,30 @@
-# Product Order Manager
+# Tasty Home - Food Store
 
 ## Current State
-A food product store with:
-- Public store: product browsing with category filter tabs, shopping cart, multi-item checkout with customer name/contact/city fields
-- Admin panel (PIN 0852): manage products (add/edit/delete with image URL or file upload), manage categories (add/delete), view orders
-- PWA support with "Add to Home Screen" button
-- Currency in ₹ (Indian Rupees)
-- Mobile-responsive design with warm terracotta/food market aesthetic
+Fresh rebuild from scratch. Previous version had persistent connection errors.
 
 ## Requested Changes (Diff)
 
 ### Add
-- Nothing new
+- Full food product store named "Tasty Home"
+- Product grid showing 2 products per row (mobile-friendly)
+- Category filter buttons (3 per row, dynamic)
+- Slide-in cart with add/remove quantity controls
+- Checkout form: name, contact number, optional city
+- Admin panel (PIN: 0852) with:
+  - Product management (add/edit/delete, image via URL or file upload)
+  - Category management (add/delete)
+  - Order management (view all orders with items)
+- PWA support with "Add to Home Screen" button top-right
+- All prices in Indian Rupees (₹)
 
 ### Modify
-- Rebuild backend fresh to resolve persistent connection errors
+- N/A (fresh build)
 
 ### Remove
-- Nothing
+- N/A (fresh build)
 
 ## Implementation Plan
-1. Regenerate Motoko backend with all existing functionality intact
-2. Rebuild frontend with all existing UI intact
-3. Deploy
+1. Backend: products, categories, orders CRUD in Motoko
+2. Frontend: store page, cart sidebar, admin panel, PWA manifest
+3. Warm terracotta design, serif typography, mobile responsive
